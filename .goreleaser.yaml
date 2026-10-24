@@ -24,3 +24,16 @@ homebrew_casks:
     homepage: "https://github.com/dpologdvinity/gitgarden"
     description: "Grow an animated ASCII garden from your git history"
     license: "MIT"
+nfpms:
+  - id: gitgarden
+    package_name: gitgarden
+    formats: [deb]
+    vendor: Kaitlyn Bassford
+    maintainer: Kaitlyn Bassford <darcykaitlynb@gmail.com>
+    homepage: "https://github.com/dpologdvinity/gitgarden"
+    description: "Play a git repository's history as an animated ASCII garden"
+    license: MIT
+    section: vcs
+    priority: optional
+    bindir: /usr/bin
+    file_name_template: "{{ .PackageName }}_{{ .Version }}_{{ .Arch }}"
