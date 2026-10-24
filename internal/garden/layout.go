@@ -76,12 +76,21 @@ func StemHeight(commits, h int) int {
 	return min(2*bits.Len(uint(commits)), h-5)
 }
 
+// maxCrownRows is the tallest leaf crown. Taller stems keep a bare trunk below it.
+const maxCrownRows = 8
+
 // LeafCells lists leaf candidate cells (x, y) in fill order for a stem of the given height.
+//
+// The leaves form a crown at the top of the stem, shaped like a teardrop: it widens by one cell
+// every two rows (up to 3 cells each side) and narrows again on its last two rows. The crown is
+// at most maxCrownRows tall and always leaves the two lowest stem cells bare, so a big plant
+// looks like a tree with a trunk instead of a wall of leaves.
 func LeafCells(cx, b, stem int) [][2]int {
 	var out [][2]int
 	top := b - stem + 1
-	for i := 0; top+i <= b-1; i++ {
-		lim := min(3, 1+i/2)
+	crown := max(1, min(stem-2, maxCrownRows))
+	for i := 0; i < crown; i++ {
+		lim := min(3, 1+i/2, crown-i)
 		for _, o := range [...]int{-1, 1, -2, 2, -3, 3} {
 			if max(o, -o) <= lim {
 				out = append(out, [2]int{cx + o, top + i})

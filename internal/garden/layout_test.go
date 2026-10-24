@@ -50,10 +50,20 @@ func TestStemHeight(t *testing.T) {
 
 // TestLeafCells checks the number and order of leaf candidate cells for a 6-row stem.
 func TestLeafCells(t *testing.T) {
+	// 6-row stem: a 4-row crown (widths 2,2,4,2) leaves the lower trunk bare.
 	c := LeafCells(10, 20, 6)
-	if len(c) != 18 || c[0] != [2]int{9, 15} || c[1] != [2]int{11, 15} ||
-		c[6] != [2]int{8, 17} || c[17] != [2]int{13, 19} {
+	if len(c) != 10 || c[0] != [2]int{9, 15} || c[1] != [2]int{11, 15} ||
+		c[6] != [2]int{8, 17} || c[9] != [2]int{11, 18} {
 		t.Fatalf("%v", c)
+	}
+	// Tall stem: the crown is capped at 8 rows (30 cells) and the trunk below stays bare.
+	c = LeafCells(10, 30, 19)
+	if len(c) != 30 || c[len(c)-1][1] != 30-19+1+7 {
+		t.Fatalf("tall stem: %d cells, last %v", len(c), c[len(c)-1])
+	}
+	// Shortest stem still gets a one-row crown.
+	if c = LeafCells(10, 20, 2); len(c) != 2 || c[0] != [2]int{9, 19} {
+		t.Fatalf("2-row stem: %v", c)
 	}
 }
 

@@ -30,7 +30,7 @@ func TestDrawOneAuthorSummer(t *testing.T) {
 		"\n\n\n\n" +
 		strings.Repeat(" ", 28) + "&|&\n" +
 		strings.Repeat(" ", 28) + "&|&\n" +
-		strings.Repeat(" ", 28) + "&|\n" +
+		strings.Repeat(" ", 29) + "|\n" +
 		strings.Repeat(" ", 29) + "|\n" +
 		strings.Repeat("=", 60) + "\n" +
 		strings.Repeat(" ", 28) + "Ada\n" +
