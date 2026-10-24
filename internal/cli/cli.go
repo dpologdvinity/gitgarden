@@ -128,9 +128,10 @@ func Run(args []string, stdout, stderr io.Writer, env Env) int {
 		io.WriteString(stdout, stillFrame())
 	default:
 		ss := g.Snapshots(600)
+		restore := func() {}
 		if env.MakeRaw != nil {
-			if restore, err := env.MakeRaw(); err == nil {
-				defer restore()
+			if r, err := env.MakeRaw(); err == nil {
+				restore = r
 			}
 		}
 		keys := make(chan byte, 16)
@@ -151,6 +152,7 @@ func Run(args []string, stdout, stderr io.Writer, env Env) int {
 		quit := player.Play(stdout, keys, len(ss), func(i int) string {
 			return render(garden.Draw(g, ss[i], w, h))
 		}, interval, env.Sleep)
+		restore() // before the final frame: raw mode disables \n -> \r\n
 		if !quit {
 			io.WriteString(stdout, stillFrame())
 		}

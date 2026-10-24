@@ -148,3 +148,31 @@ func TestTinyTerminalClamps(t *testing.T) {
 		t.Fatalf("not clamped to 40x12: %q", out)
 	}
 }
+
+type orderWriter struct {
+	events *[]string
+	last   string
+}
+
+func (w *orderWriter) Write(p []byte) (int, error) {
+	w.last = string(p)
+	*w.events = append(*w.events, "write")
+	return len(p), nil
+}
+
+func TestPlayRestoresTerminalBeforeFinalFrame(t *testing.T) {
+	r := threeAuthors(t)
+	var events []string
+	env := fakeEnv()
+	env.StdoutTTY = true
+	env.Getenv = func(k string) string { return map[string]string{"NO_COLOR": "1"}[k] }
+	env.TermSize = func() (int, int, error) { return 60, 16, nil }
+	env.MakeRaw = func() (func(), error) { return func() { events = append(events, "restore") }, nil }
+	w := &orderWriter{events: &events}
+	if code := Run([]string{"-C", r.Dir}, w, &bytes.Buffer{}, env); code != 0 {
+		t.Fatal(code)
+	}
+	if len(events) < 2 || events[len(events)-2] != "restore" || events[len(events)-1] != "write" {
+		t.Fatalf("final frame must be written right after restore, got tail %v", events[max(0, len(events)-3):])
+	}
+}
