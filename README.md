@@ -1,5 +1,11 @@
 # gitgarden
 
+[![CI](https://github.com/dpologdvinity/gitgarden/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/dpologdvinity/gitgarden/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/dpologdvinity/gitgarden)](https://github.com/dpologdvinity/gitgarden/releases/latest)
+[![Go version](https://img.shields.io/github/go-mod/go-version/dpologdvinity/gitgarden)](go.mod)
+[![License: MIT](https://img.shields.io/github/license/dpologdvinity/gitgarden)](LICENSE)
+[![Platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macOS%20%7C%20Windows-blue)](https://github.com/dpologdvinity/gitgarden/releases/latest)
+
 `gitgarden` plays a git repository's history as an animated ASCII garden. Every contributor is a plant: commits make it grow taller and add leaves, deleted lines drop leaves, and the month of each commit sets the season. Play it in the terminal, print a still final frame, or export a GIF for your README. It is read-only and deterministic: the same repo and flags give the same output.
 
 ![gitgarden demo](docs/demo.gif)
@@ -18,7 +24,7 @@ brew install dpologdvinity/tap/gitgarden
 go install github.com/dpologdvinity/gitgarden@latest
 ```
 
-Or download a binary from the GitHub releases page (linux, macOS and Windows; amd64 and arm64).
+Or download a binary from the [releases page](https://github.com/dpologdvinity/gitgarden/releases/latest) (linux, macOS and Windows; amd64 and arm64).
 
 ## Usage
 
@@ -69,6 +75,7 @@ gitgarden - REPO - 2024-12 winter               12/12 commits
 - Merge commits are skipped, since their changes are already counted in the commits they merge.
 - Huge commits (over 1000 added or deleted lines) count once, with lines capped at 1000, and show `[huge]` in the status line.
 - Seasons follow the month of the current commit (northern hemisphere): Dec-Feb winter, Mar-May spring, Jun-Aug summer, Sep-Nov autumn.
+- Each plant is a trunk with a teardrop crown of leaves, drawn against a sky-blue background.
 - Beyond what fits on screen, the remaining contributors become wildflowers.
 - Exit codes: 0 success, 1 no commits, 2 usage or git error.
 
@@ -89,7 +96,7 @@ gofmt -l .           # must print nothing
 
 Golden files live in `testdata/golden`. After an intended change to the output, regenerate them per package with `go test ./internal/<pkg> -update` and review the diff.
 
-Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md). [ARCHITECTURE.md](ARCHITECTURE.md) explains how the code is organized and [docs/SPEC.md](docs/SPEC.md) for the exact behavior.
+Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md). [ARCHITECTURE.md](ARCHITECTURE.md) explains how the code is organized, and [docs/SPEC.md](docs/SPEC.md) describes the exact behavior.
 
 ## License
 
