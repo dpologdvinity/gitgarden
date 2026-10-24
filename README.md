@@ -2,7 +2,17 @@
 
 `gitgarden` plays a git repository's history as an animated ASCII garden. Every contributor is a plant: commits make it grow taller and add leaves, deleted lines drop leaves, and the month of each commit sets the season. Play it in the terminal, print a still final frame, or export a GIF for your README. It is read-only and deterministic: the same repo and flags give the same output.
 
+![gitgarden demo](docs/demo.gif)
+
 ## Install
+
+### Homebrew
+
+```
+brew install dpologdvinity/tap/gitgarden
+```
+
+### Go install
 
 ```
 go install github.com/dpologdvinity/gitgarden@latest

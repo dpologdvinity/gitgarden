@@ -14,3 +14,13 @@ archives:
         formats: [zip]
 checksum:
   name_template: checksums.txt
+homebrew_casks:
+  - repository:
+      owner: dpologdvinity
+      name: homebrew-tap
+      branch: master
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Casks
+    homepage: "https://github.com/dpologdvinity/gitgarden"
+    description: "Grow an animated ASCII garden from your git history"
+    license: "MIT"
