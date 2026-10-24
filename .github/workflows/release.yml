@@ -1,3 +1,5 @@
+# Publishes a GitHub release with binaries when a version tag (v*) is pushed.
+# Needs no extra secrets: GITHUB_TOKEN is provided by Actions.
 name: release
 on:
   push:
@@ -14,6 +16,8 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
+      # A tag must never publish untested code.
+      - run: go test ./...
       - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
         with:
           version: "~> v2"

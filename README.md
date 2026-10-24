@@ -62,6 +62,13 @@ gitgarden - REPO - 2024-12 winter               12/12 commits
 - Beyond what fits on screen, the remaining contributors become wildflowers.
 - Exit codes: 0 success, 1 no commits, 2 usage or git error.
 
+## Architecture in brief
+
+`git log` output is parsed by `internal/gitlog` into commits; `internal/garden` ranks authors, samples
+snapshots of their cumulative stats and draws each snapshot into a character grid (`internal/frame`);
+the grid is then printed, played in the terminal (`internal/player`) or encoded as a GIF
+(`internal/gifenc`). Details and design decisions are in [ARCHITECTURE.md](ARCHITECTURE.md).
+
 ## Development
 
 ```
@@ -72,7 +79,7 @@ gofmt -l .           # must print nothing
 
 Golden files live in `testdata/golden`. After an intended change to the output, regenerate them per package with `go test ./internal/<pkg> -update` and review the diff.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for how the code is organized and [docs/SPEC.md](docs/SPEC.md) for the exact behavior.
+Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md). [ARCHITECTURE.md](ARCHITECTURE.md) explains how the code is organized and [docs/SPEC.md](docs/SPEC.md) for the exact behavior.
 
 ## License
 
