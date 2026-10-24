@@ -142,4 +142,10 @@ Tests use only the standard library:
   linux/darwin/windows binaries for amd64 and arm64, publish a GitHub release and update the
   Homebrew cask in `dpologdvinity/homebrew-tap` (needs the `HOMEBREW_TAP_TOKEN` secret). The release
   workflow runs the test suite on all three operating systems first.
+* GoReleaser also builds `.deb` packages (`nfpms`, amd64 and arm64). After each release,
+  `.github/workflows/apt-repo.yml` rebuilds a signed apt repository from the `.deb` files of every
+  release (`scripts/build-apt-repo.sh`, using `apt-ftparchive` and GPG) and publishes it to GitHub Pages at
+  `https://dpologdvinity.github.io/gitgarden`. The signing key is the secret `APT_GPG_PRIVATE_KEY`;
+  `scripts/setup-apt-signing.sh` creates it once. CI checks the repository with the real `apt` tools
+  (`scripts/test-apt-repo.sh`).
 * Third-party actions are pinned by commit SHA and updated by Dependabot.

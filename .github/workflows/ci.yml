@@ -107,7 +107,9 @@ jobs:
       - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
         with:
           version: "~> v2"
-          args: build --snapshot --clean
+          args: release --snapshot --clean --skip=homebrew,announce
+      - name: apt repository builds, verifies and installs from a local file:// source
+        run: scripts/test-apt-repo.sh dist
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: gitgarden-binaries

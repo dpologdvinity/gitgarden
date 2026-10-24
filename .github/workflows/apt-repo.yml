@@ -1,0 +1,61 @@
+# Publishes the signed apt repository to GitHub Pages after every successful release.
+# It rebuilds the whole repository from the .deb files of all releases, so old versions stay installable.
+# Needs the repository secret APT_GPG_PRIVATE_KEY (armored private signing key, no passphrase).
+name: apt-repo
+on:
+  workflow_run:
+    workflows: [release]
+    types: [completed]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: apt-repo
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    env:
+      # The signing key is a repository secret; without it the job does nothing (see the README).
+      HAS_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY != '' }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Skip notice
+        if: env.HAS_KEY != 'true'
+        run: echo "::warning::APT_GPG_PRIVATE_KEY is not set; the apt repository was not published."
+      - name: Download every release's .deb files
+        if: env.HAS_KEY == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir debs
+          for tag in $(gh release list --limit 100 --json tagName -q '.[].tagName'); do
+            gh release download "$tag" --pattern '*.deb' --dir debs --skip-existing
+          done
+          ls debs
+      - name: Import signing key
+        if: env.HAS_KEY == 'true'
+        env:
+          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+        run: |
+          echo "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
+          echo "KEY_ID=$(gpg --batch --list-secret-keys --with-colons | awk -F: '/^fpr/ {print $10; exit}')" >> "$GITHUB_ENV"
+      - name: Build the signed repository
+        if: env.HAS_KEY == 'true'
+        run: scripts/build-apt-repo.sh debs site "$KEY_ID"
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        if: env.HAS_KEY == 'true'
+        with:
+          path: site
+      - id: deploy
+        if: env.HAS_KEY == 'true'
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

@@ -24,6 +24,7 @@ go build ./... && go test ./...
 | Vet | `go vet ./...` |
 | Lint | `golangci-lint run ./...` |
 | Check release config | `goreleaser check` |
+| Check the apt repository build | `goreleaser release --snapshot --clean --skip=homebrew,announce && scripts/test-apt-repo.sh dist` |
 
 ## Tests
 
