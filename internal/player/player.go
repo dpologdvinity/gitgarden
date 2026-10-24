@@ -29,7 +29,10 @@ func Play(w io.Writer, keys <-chan byte, n int, frameAt func(i int) string,
 		}
 	}
 	for i := 0; i < n; i++ {
-		_, _ = io.WriteString(w, "\x1b[H"+strings.ReplaceAll(frameAt(i), "\n", "\x1b[K\r\n")+"\x1b[K")
+		// Synchronized output (DEC mode 2026): the terminal holds back drawing until the whole
+		// frame has arrived, so the erase-and-redraw of each line never shows as flicker.
+		// Terminals that do not know the mode ignore it.
+		_, _ = io.WriteString(w, "\x1b[?2026h\x1b[H"+strings.ReplaceAll(frameAt(i), "\n", "\x1b[K\r\n")+"\x1b[K\x1b[?2026l")
 		if quitKey() {
 			return true
 		}
