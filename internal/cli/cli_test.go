@@ -3,10 +3,15 @@ package cli
 import (
 	"bytes"
 	"errors"
+	"fmt"
+	"image/gif"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/dpologdvinity/gitgarden/internal/golden"
 	"github.com/dpologdvinity/gitgarden/internal/testrepo"
 )
 
@@ -63,5 +68,83 @@ func TestRepoErrors(t *testing.T) {
 	empty := testrepo.New(t)
 	if _, e, code := run(fakeEnv(), "-C", empty.Dir, "--still"); code != 1 || e != "gitgarden: no commits found\n" {
 		t.Fatalf("%d %q", code, e)
+	}
+}
+
+func threeAuthors(t *testing.T) *testrepo.Repo {
+	r := testrepo.New(t)
+	for i := 0; i < 12; i++ {
+		who := []string{"Ada", "Bob", "Cy"}[i%3]
+		r.Write(fmt.Sprintf("f%d.txt", i%4), strings.Repeat(fmt.Sprintf("line %d\n", i), 5+i))
+		r.Commit(who, strings.ToLower(who)+"@example.com", fmt.Sprintf("change %d", i))
+	}
+	return r
+}
+
+func TestStillGolden(t *testing.T) {
+	r := threeAuthors(t)
+	out, _, code := run(fakeEnv(), "-C", r.Dir, "--still", "--width", "60", "--height", "16")
+	if code != 0 {
+		t.Fatal(code)
+	}
+	golden.Assert(t, "still_three_authors", strings.ReplaceAll(out, filepath.Base(r.Dir), "REPO"))
+}
+
+func TestNonTTYFallsBackToStill(t *testing.T) {
+	r := threeAuthors(t)
+	a, _, _ := run(fakeEnv(), "-C", r.Dir)
+	b, _, _ := run(fakeEnv(), "-C", r.Dir, "--still", "--width", "80", "--height", "24")
+	if a != b || strings.Count(a, "\n") != 24 || strings.Contains(a, "\x1b") {
+		t.Fatalf("fallback differs or has escapes")
+	}
+}
+
+func TestGifExport(t *testing.T) {
+	r := threeAuthors(t)
+	path := filepath.Join(t.TempDir(), "out.gif")
+	out, _, code := run(fakeEnv(), "-C", r.Dir, "--gif", path)
+	if code != 0 || out != "wrote "+path+" (12 frames, 560x312)\n" {
+		t.Fatalf("%d %q", code, out)
+	}
+	f, _ := os.Open(path)
+	defer f.Close()
+	a, err := gif.DecodeAll(f)
+	if err != nil || len(a.Image) != 12 || a.Delay[0] != 10 || a.Delay[11] != 300 {
+		t.Fatalf("decode %v", err)
+	}
+	if _, e, code := run(fakeEnv(), "-C", r.Dir, "--gif", filepath.Join(path, "nope", "x.gif")); code != 2 || !strings.HasPrefix(e, "gitgarden: cannot write ") {
+		t.Fatalf("bad path %d %q", code, e)
+	}
+}
+
+func TestPlayMode(t *testing.T) {
+	r := threeAuthors(t)
+	env := fakeEnv()
+	env.StdoutTTY = true
+	env.Getenv = func(k string) string { return map[string]string{"NO_COLOR": "1"}[k] }
+	env.TermSize = func() (int, int, error) { return 60, 16, nil }
+	out, _, code := run(env, "-C", r.Dir)
+	if code != 0 || !strings.HasPrefix(out, "\x1b[?1049h") || strings.Count(out, "\x1b[H") != 12 {
+		t.Fatalf("play output wrong: code %d", code)
+	}
+	end := strings.LastIndex(out, "\x1b[?1049l") + len("\x1b[?1049l")
+	still, _, _ := run(fakeEnv(), "-C", r.Dir, "--still", "--width", "60", "--height", "16")
+	if out[end:] != still {
+		t.Fatalf("final frame after playback differs from --still:\n%s", out[end:])
+	}
+	if strings.Contains(out, "\x1b[38;2") {
+		t.Fatal("NO_COLOR ignored")
+	}
+}
+
+func TestTinyTerminalClamps(t *testing.T) {
+	r := threeAuthors(t)
+	env := fakeEnv()
+	env.StdoutTTY = true
+	env.Getenv = func(k string) string { return map[string]string{"NO_COLOR": "1"}[k] }
+	env.TermSize = func() (int, int, error) { return 20, 5, nil }
+	out, _, code := run(env, "-C", r.Dir, "--still")
+	if code != 0 || strings.Count(out, "\n") != 12 || !strings.Contains(out, strings.Repeat("=", 40)+"\n") {
+		t.Fatalf("not clamped to 40x12: %q", out)
 	}
 }
