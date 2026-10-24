@@ -38,3 +38,18 @@ func TestPlayQuitKeys(t *testing.T) {
 		}
 	}
 }
+
+func TestPlayQuitDuringLongInterval(t *testing.T) {
+	keys := make(chan byte, 1)
+	var slept []time.Duration
+	quit := Play(&bytes.Buffer{}, keys, 1, func(int) string { return "x" }, 10*time.Second,
+		func(d time.Duration) {
+			slept = append(slept, d)
+			if len(slept) == 1 {
+				keys <- 'q'
+			}
+		})
+	if !quit || len(slept) != 1 || slept[0] > 100*time.Millisecond {
+		t.Fatalf("quit %v slept %v", quit, slept)
+	}
+}
