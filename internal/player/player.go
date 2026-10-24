@@ -14,8 +14,8 @@ const pollEvery = 100 * time.Millisecond
 // user quit (q, Q, Ctrl-C or Esc) before the last frame finished.
 func Play(w io.Writer, keys <-chan byte, n int, frameAt func(i int) string,
 	interval time.Duration, sleep func(time.Duration)) (quit bool) {
-	io.WriteString(w, "\x1b[?1049h\x1b[?25l")
-	defer io.WriteString(w, "\x1b[?25h\x1b[?1049l")
+	_, _ = io.WriteString(w, "\x1b[?1049h\x1b[?25l")
+	defer func() { _, _ = io.WriteString(w, "\x1b[?25h\x1b[?1049l") }()
 	quitKey := func() bool {
 		for {
 			select {
@@ -29,7 +29,7 @@ func Play(w io.Writer, keys <-chan byte, n int, frameAt func(i int) string,
 		}
 	}
 	for i := 0; i < n; i++ {
-		io.WriteString(w, "\x1b[H"+strings.ReplaceAll(frameAt(i), "\n", "\x1b[K\r\n")+"\x1b[K")
+		_, _ = io.WriteString(w, "\x1b[H"+strings.ReplaceAll(frameAt(i), "\n", "\x1b[K\r\n")+"\x1b[K")
 		if quitKey() {
 			return true
 		}

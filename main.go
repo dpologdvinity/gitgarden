@@ -37,7 +37,7 @@ func main() {
 			if err != nil {
 				return nil, err
 			}
-			return func() { term.Restore(stdin, old) }, nil
+			return func() { _ = term.Restore(stdin, old) }, nil
 		}
 	}
 	exitCleanlyOnSignal(env.StdoutTTY, stdin)
@@ -56,10 +56,10 @@ func exitCleanlyOnSignal(stdoutTTY bool, stdin int) {
 	go func() {
 		sig := <-ch
 		if saved != nil {
-			term.Restore(stdin, saved)
+			_ = term.Restore(stdin, saved)
 		}
 		if stdoutTTY {
-			os.Stdout.WriteString("\x1b[?25h\x1b[?1049l")
+			_, _ = os.Stdout.WriteString("\x1b[?25h\x1b[?1049l")
 		}
 		code := 130
 		if sig == syscall.SIGTERM {

@@ -75,19 +75,19 @@ func Run(args []string, stdout, stderr io.Writer, env Env) int {
 	version := fs.Bool("version", false, "")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
-			io.WriteString(stdout, usage)
+			_, _ = io.WriteString(stdout, usage)
 			return 0
 		}
-		io.WriteString(stderr, usage)
+		_, _ = io.WriteString(stderr, usage)
 		return 2
 	}
 	if *version {
-		fmt.Fprintf(stdout, "gitgarden %s\n", env.Version)
+		_, _ = fmt.Fprintf(stdout, "gitgarden %s\n", env.Version)
 		return 0
 	}
 	// Validate flags in a fixed order so each invalid input has exactly one error message.
 	fail := func(msg string) int {
-		fmt.Fprintf(stderr, "gitgarden: %s\n", msg)
+		_, _ = fmt.Fprintf(stderr, "gitgarden: %s\n", msg)
 		return 2
 	}
 	switch {
@@ -111,7 +111,7 @@ func Run(args []string, stdout, stderr io.Writer, env Env) int {
 	case errors.Is(err, gitlog.ErrNotRepo):
 		return fail("not a git repository: " + *dir)
 	case errors.Is(err, gitlog.ErrNoCommits):
-		fmt.Fprintf(stderr, "gitgarden: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "gitgarden: %v\n", err)
 		return 1
 	case err != nil:
 		return fail(err.Error())
@@ -142,9 +142,9 @@ func Run(args []string, stdout, stderr io.Writer, env Env) int {
 		if err := writeGIF(*gifPath, grids, gifenc.Delay(*speed)); err != nil {
 			return fail(fmt.Sprintf("cannot write %s: %v", *gifPath, err))
 		}
-		fmt.Fprintf(stdout, "wrote %s (%d frames, %dx%d)\n", *gifPath, len(grids), w*gifenc.CellW, h*gifenc.CellH)
+		_, _ = fmt.Fprintf(stdout, "wrote %s (%d frames, %dx%d)\n", *gifPath, len(grids), w*gifenc.CellW, h*gifenc.CellH)
 	case *still || !env.StdoutTTY:
-		io.WriteString(stdout, stillFrame())
+		_, _ = io.WriteString(stdout, stillFrame())
 	default:
 		ss := g.Snapshots(600)
 		restore := func() {}
@@ -174,7 +174,7 @@ func Run(args []string, stdout, stderr io.Writer, env Env) int {
 		}, interval, env.Sleep)
 		restore() // before the final frame: raw mode disables \n -> \r\n
 		if !quit {
-			io.WriteString(stdout, stillFrame())
+			_, _ = io.WriteString(stdout, stillFrame())
 		}
 	}
 	return 0
@@ -188,8 +188,8 @@ func writeGIF(path string, grids []*frame.Grid, delay int) error {
 		return err
 	}
 	if err := gifenc.Write(f, grids, delay); err != nil {
-		f.Close()
-		os.Remove(path) // no truncated GIF left behind
+		_ = f.Close()
+		_ = os.Remove(path) // no truncated GIF left behind
 		return err
 	}
 	return f.Close()

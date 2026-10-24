@@ -116,7 +116,7 @@ func TestGifExport(t *testing.T) {
 		t.Fatalf("%d %q", code, out)
 	}
 	f, _ := os.Open(path)
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	a, err := gif.DecodeAll(f)
 	if err != nil || len(a.Image) != 12 || a.Delay[0] != 10 || a.Delay[11] != 300 {
 		t.Fatalf("decode %v", err)
