@@ -277,7 +277,7 @@ Every rune outside 0x20–0x7E in names and subjects becomes `?`. This keeps the
 - Status (row H-1), color Dim: `<YYYY-MM-DD> <name>: +<Added> -<Deleted>[ [huge]] <subject>` for the current commit, sanitized, truncated to W runes. `[huge]` appears only when `Huge` is true.
 
 ### 7.5 Draw order
-1. Title row. 2. Soil row. 3. For each slot: plant (stem, leaves, fallen) or wildflowers. 4. Labels. 5. Status row.
+1. Title row. 2. Sky: every cell of rows `1 .. H-4` gets background `Sky` (glyphs drawn later keep it; other rows keep the default background). 3. Soil row. 4. For each slot: plant (stem, leaves, fallen) or wildflowers. 5. Labels. 6. Status row.
 
 ## 8. Play mode (package `internal/player`)
 
@@ -301,7 +301,7 @@ const CellW, CellH = 7, 13
 func Image(g *frame.Grid) *image.Paletted
 func Write(w io.Writer, frames []*frame.Grid, delay int) error
 ```
-- Image size: `W*7 x H*13` pixels. Palette: the 16 colors of §10.2, in index order.
+- Image size: `W*7 x H*13` pixels. Palette: the 17 colors of §10.2, in index order.
 - Each cell: fill its 7x13 rectangle with the cell's BG color, then draw its rune with `font.Drawer{Dst: img, Src: image.NewUniform(Palette[fg]), Face: basicfont.Face7x13, Dot: fixed.P(x*7, y*13+11)}`. Runes outside 0x20–0x7E draw as `?`. Space draws nothing.
 - `gif.GIF{Image: images, Delay: delays, LoopCount: 0}` then `gif.EncodeAll`. Every delay is `delay` except the last, which is 300 (3 s).
 - `delay = max(2, int(math.Round(10 / speed)))` in hundredths of a second.
@@ -314,7 +314,7 @@ func Write(w io.Writer, frames []*frame.Grid, delay int) error
 ```go
 type Color uint8
 const (BG Color = iota; FG; Dim; Green; DarkGreen; Brown; Yellow; Red;
-       Orange; White; Blue; Pink; Cyan; Bar; Purple; LightGreen)
+       Orange; White; Blue; Pink; Cyan; Bar; Purple; LightGreen; Sky)
 type Cell struct { Ch rune; FG, BG Color }
 type Grid struct { W, H int; Cells []Cell } // row-major, len W*H
 func New(w, h int) *Grid                      // every cell {' ', FG, BG}
@@ -348,6 +348,7 @@ func (g *Grid) ANSI() string                    // truecolor
 | 13 | Bar | `#2c313a` |
 | 14 | Purple | `#c678dd` |
 | 15 | LightGreen | `#98c379` |
+| 16 | Sky | `#3d85c6` |
 
 ### 10.3 Color in the terminal
 Color is on only when stdout is a terminal, `NO_COLOR` is empty, and `--no-color` is not set. Golden tests use `String()`. The GIF always uses colors.

@@ -29,3 +29,10 @@ func TestANSI(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+// TestSkyColor checks that Sky is the last palette entry, so existing color indexes do not move.
+func TestSkyColor(t *testing.T) {
+	if Sky != 16 || len(Palette) != 17 || Palette[Sky] != [3]uint8{0x3d, 0x85, 0xc6} {
+		t.Fatalf("Sky %d, palette size %d", Sky, len(Palette))
+	}
+}

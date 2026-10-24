@@ -122,3 +122,23 @@ func TestDrawFarWildflowerStillGetsLabel(t *testing.T) {
 		t.Fatalf("wildflower label missing:\n%s", out)
 	}
 }
+
+// TestDrawPaintsSkyBehindPlants checks that the plant area has a sky-blue background while the
+// title, soil, label and status rows keep the default background.
+func TestDrawPaintsSkyBehindPlants(t *testing.T) {
+	g := Build("demo", []gitlog.Commit{dated(cm("Ada", "a@x", 10, 0), 2024, 7, 1, "x")})
+	fr := Draw(g, g.Snapshots(1)[0], 60, 12)
+	for _, row := range []int{1, 4, 8} { // plant area is rows 1..b with b = h-4 = 8
+		if c := fr.At(0, row); c.BG != frame.Sky {
+			t.Errorf("row %d: background %v, want Sky", row, c.BG)
+		}
+	}
+	for _, row := range []int{0, 9, 10, 11} { // title, soil, label, status
+		if c := fr.At(0, row); c.BG != frame.BG {
+			t.Errorf("row %d: background %v, want default", row, c.BG)
+		}
+	}
+	if c := fr.At(29, 8); c.Ch != '|' || c.BG != frame.Sky {
+		t.Errorf("stem cell %+v: glyph must keep the sky background", c)
+	}
+}

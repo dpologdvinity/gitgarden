@@ -61,6 +61,13 @@ func Draw(g *Garden, s Snapshot, w, h int) *frame.Grid {
 	fr.Text(0, 0, left, frame.FG)
 	fr.Text(w-len([]rune(right)), 0, right, frame.FG)
 
+	// sky: the plant area gets a blue background; glyphs drawn later keep it
+	for y := 1; y <= b; y++ {
+		for x := 0; x < w; x++ {
+			fr.SetBG(x, y, frame.Sky)
+		}
+	}
+
 	// soil
 	soil := frame.Brown
 	if season == Winter {
