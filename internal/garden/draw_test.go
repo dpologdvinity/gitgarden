@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dpologdvinity/gitgarden/internal/frame"
 	"github.com/dpologdvinity/gitgarden/internal/gitlog"
 	"github.com/dpologdvinity/gitgarden/internal/golden"
 )
@@ -67,4 +68,35 @@ func TestDrawGolden(t *testing.T) {
 	ss := g.Snapshots(4)
 	golden.Assert(t, "w40_wildflowers_winter", Draw(g, ss[1], 40, 16).String()) // index 13, February
 	golden.Assert(t, "w80_final", Draw(g, ss[3], 80, 24).String())
+}
+
+func TestLeafPalette(t *testing.T) {
+	type lc struct {
+		ch  rune
+		col frame.Color
+	}
+	cases := []struct {
+		season Season
+		want   [4]lc
+	}{
+		{Spring, [4]lc{{'*', frame.Pink}, {'&', frame.LightGreen}, {'&', frame.LightGreen}, {'*', frame.Pink}}},
+		{Summer, [4]lc{{'&', frame.Green}, {'&', frame.Green}, {'&', frame.Green}, {'&', frame.Green}}},
+		{Autumn, [4]lc{{'&', frame.Orange}, {'&', frame.Red}, {'&', frame.Orange}, {'&', frame.Red}}},
+		{Winter, [4]lc{{'*', frame.White}, {'*', frame.White}, {'*', frame.White}, {'*', frame.White}}},
+	}
+	for _, c := range cases {
+		for j, w := range c.want {
+			if ch, col := leaf(c.season, j); ch != w.ch || col != w.col {
+				t.Errorf("%v leaf %d: got %c/%v want %c/%v", c.season, j, ch, col, w.ch, w.col)
+			}
+		}
+	}
+}
+
+func TestAutumnFallenLeavesAreOrange(t *testing.T) {
+	g := Build("demo", []gitlog.Commit{dated(cm("Ada", "a@x", 10, 0), 2024, 10, 1, "x")})
+	fr := Draw(g, g.Snapshots(1)[0], 60, 12)
+	if c := fr.At(26+3-3, 8); c.Ch != ',' || c.FG != frame.Orange {
+		t.Fatalf("fallen leaf cell %+v", c)
+	}
 }
