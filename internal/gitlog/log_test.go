@@ -106,3 +106,26 @@ func TestLoadFromSubdirUsesTopLevelName(t *testing.T) {
 		t.Fatalf("repo %q err %v", repo, err)
 	}
 }
+
+func TestLoadSubjectWithRecordSeparator(t *testing.T) {
+	r := testrepo.New(t)
+	r.Write("a.txt", "x\n")
+	r.Commit("Ada", "ada@example.com", "before\x1eafter")
+	r.Write("a.txt", "y\n")
+	r.Commit("Ada", "ada@example.com", "second")
+	_, cs, err := Load(r.Dir, "")
+	if err != nil || len(cs) != 2 || cs[0].Subject != "before\x1eafter" || cs[1].Subject != "second" {
+		t.Fatalf("err %v commits %+v", err, cs)
+	}
+}
+
+func TestLoadDubiousOwnershipIsNotReportedAsNotRepo(t *testing.T) {
+	err := classifyRevParse(&GitError{Args: []string{"rev-parse"}, Stderr: "fatal: detected dubious ownership in repository at '/x'\n"})
+	var ge *GitError
+	if errors.Is(err, ErrNotRepo) || !errors.As(err, &ge) {
+		t.Fatalf("got %v", err)
+	}
+	if !errors.Is(classifyRevParse(&GitError{Stderr: "fatal: not a git repository (or any of the parent directories): .git\n"}), ErrNotRepo) {
+		t.Fatal("real non-repo must map to ErrNotRepo")
+	}
+}

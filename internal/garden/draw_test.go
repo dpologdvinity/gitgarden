@@ -100,3 +100,16 @@ func TestAutumnFallenLeavesAreOrange(t *testing.T) {
 		t.Fatalf("fallen leaf cell %+v", c)
 	}
 }
+
+func TestDrawFarWildflowerStillGetsLabel(t *testing.T) {
+	cs := []gitlog.Commit{dated(cm("Last", "last@x", 1, 0), 2024, 1, 1, "first")}
+	for i := 0; i < 1000; i++ {
+		c := dated(cm(fmt.Sprintf("A%d", i), fmt.Sprintf("a%d@x", i), 5, 0), 2024, 1, 2, "x")
+		cs = append(cs, c, c)
+	}
+	g := Build("demo", cs)
+	out := Draw(g, g.Snapshots(2001)[0], 80, 24).String()
+	if !strings.Contains(out, "+994") {
+		t.Fatalf("wildflower label missing:\n%s", out)
+	}
+}

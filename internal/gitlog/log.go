@@ -42,7 +42,8 @@ func git(dir string, args ...string) (string, error) {
 	full := append([]string{"-C", dir}, args...)
 	cmd := exec.Command("git", full...)
 	cmd.Env = append(os.Environ(), "LC_ALL=C")
-	var stdout, stderr bytes.Buffer
+	var stdout strings.Builder // String() does not copy, unlike bytes.Buffer
+	var stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {
 		return "", &GitError{Args: args, Stderr: stderr.String()}
@@ -57,7 +58,7 @@ func Load(dir, since string) (repo string, commits []Commit, err error) {
 	}
 	top, err := git(dir, "rev-parse", "--show-toplevel")
 	if err != nil {
-		return "", nil, ErrNotRepo
+		return "", nil, classifyRevParse(err)
 	}
 	repo = filepath.Base(strings.TrimSpace(top))
 	if _, err := git(dir, "rev-parse", "--verify", "--quiet", "HEAD"); err != nil {
@@ -73,7 +74,7 @@ func Load(dir, since string) (repo string, commits []Commit, err error) {
 	if err != nil {
 		return repo, nil, err
 	}
-	for _, chunk := range strings.Split(out, "\x1e")[1:] {
+	for _, chunk := range splitRecords(out) {
 		c, err := parseChunk(chunk)
 		if err != nil {
 			return repo, nil, err
@@ -117,4 +118,42 @@ func parseChunk(chunk string) (Commit, error) {
 	c.Added = min(c.Added, HugeCap)
 	c.Deleted = min(c.Deleted, HugeCap)
 	return c, nil
+}
+
+// classifyRevParse maps git's "not a repository" failure to ErrNotRepo and
+// keeps every other failure (dubious ownership, permissions) visible.
+func classifyRevParse(err error) error {
+	var ge *GitError
+	if errors.As(err, &ge) && !strings.Contains(ge.Stderr, "not a git repository") {
+		return err
+	}
+	return ErrNotRepo
+}
+
+// splitRecords splits log output on \x1e, but only where a commit hash and
+// \x1f follow, so a \x1e inside a subject does not cut a commit in two.
+func splitRecords(out string) []string {
+	var recs []string
+	start := -1
+	for i := 0; i < len(out); i++ {
+		if out[i] != 0x1e || !hashFollows(out[i+1:]) {
+			continue
+		}
+		if start >= 0 {
+			recs = append(recs, out[start:i])
+		}
+		start = i + 1
+	}
+	if start >= 0 {
+		recs = append(recs, out[start:])
+	}
+	return recs
+}
+
+func hashFollows(s string) bool {
+	n := 0
+	for n < len(s) && (s[n] >= '0' && s[n] <= '9' || s[n] >= 'a' && s[n] <= 'f') {
+		n++
+	}
+	return (n == 40 || n == 64) && n < len(s) && s[n] == 0x1f
 }

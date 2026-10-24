@@ -53,7 +53,7 @@ func Draw(g *Garden, s Snapshot, w, h int) *frame.Grid {
 
 	// title
 	right := fmt.Sprintf("%d/%d commits", s.Index+1, len(g.Commits))
-	left := truncate(fmt.Sprintf("gitgarden - %s - %s %s", Sanitize(g.Repo), cur.Time.Format("2006-01"), season), w-len(right)-1)
+	left := truncate(fmt.Sprintf("gitgarden - %s - %s %s", Sanitize(g.Repo), cur.Time.Format("2006-01"), season), w-len([]rune(right))-1)
 	fr.Text(0, 0, left, frame.FG)
 	fr.Text(w-len([]rune(right)), 0, right, frame.FG)
 
@@ -81,18 +81,13 @@ func Draw(g *Garden, s Snapshot, w, h int) *frame.Grid {
 			label = Sanitize(g.Authors[sl.Author].Name)
 			labelYellow = sl.Author == curRank
 		} else {
-			planted := false
-			for j := 0; firstWild+j < len(g.Authors); j++ {
-				if s.Stats[firstWild+j].Commits == 0 {
-					continue
-				}
-				planted = true
-				if j < 7*b {
+			if s.MaxRank < firstWild {
+				continue
+			}
+			for j := 0; j < 7*b && firstWild+j < len(s.Stats); j++ {
+				if s.Stats[firstWild+j].Commits > 0 {
 					fr.Set(sl.X0+j%7, b-j/7, '*', wildColors[j%6])
 				}
-			}
-			if !planted {
-				continue
 			}
 			label = fmt.Sprintf("+%d", len(g.Authors)-firstWild)
 			labelYellow = curRank >= firstWild

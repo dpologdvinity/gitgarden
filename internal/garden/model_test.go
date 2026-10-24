@@ -1,6 +1,7 @@
 package garden
 
 import (
+	"fmt"
 	"slices"
 	"testing"
 
@@ -53,5 +54,32 @@ func TestSnapshots(t *testing.T) {
 	}
 	if last := g.Snapshots(1); len(last) != 1 || last[0].Stats[0] != (Stats{10, 20, 10}) {
 		t.Fatalf("%+v", last)
+	}
+}
+
+func TestSnapshotStatsAreBounded(t *testing.T) {
+	var cs []gitlog.Commit
+	for i := 0; i < 1000; i++ { // 1000 authors; author 0 has the most commits
+		for k := 0; k <= (1000-i)/500; k++ {
+			cs = append(cs, cm(fmt.Sprintf("A%d", i), fmt.Sprintf("a%d@x", i), 1, 0))
+		}
+	}
+	g := Build("demo", cs)
+	for _, s := range g.Snapshots(5) {
+		if len(s.Stats) > MaxVisibleRanks {
+			t.Fatalf("snapshot keeps %d ranks, cap %d", len(s.Stats), MaxVisibleRanks)
+		}
+	}
+}
+
+func TestSnapshotTracksFarWildflower(t *testing.T) {
+	cs := []gitlog.Commit{cm("Last", "last@x", 1, 0)} // rank 1000 after the others below
+	for i := 0; i < 1000; i++ {
+		cs = append(cs, cm(fmt.Sprintf("A%d", i), fmt.Sprintf("a%d@x", i), 5, 0), cm(fmt.Sprintf("A%d", i), fmt.Sprintf("a%d@x", i), 5, 0))
+	}
+	g := Build("demo", cs)
+	s := g.Snapshots(0 + 1000)[0] // index 0: only the lowest-ranked author has a commit
+	if s.Index != 0 || s.MaxRank != 1000 {
+		t.Fatalf("index %d maxRank %d", s.Index, s.MaxRank)
 	}
 }

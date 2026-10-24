@@ -123,7 +123,7 @@ On GIF success print to stdout: `wrote <path> (<frames> frames, <Wpx>x<Hpx>)`.
 
 All git calls run as `git -C <dir> <args>` through `os/exec`, with `LC_ALL=C` added to the environment. Never pass `-c` options that write. Never run commands that change refs, the index, or the worktree.
 
-1. `git -C <dir> rev-parse --show-toplevel`. Failure means "not a repository". `Repo` name = `filepath.Base` of the trimmed output.
+1. `git -C <dir> rev-parse --show-toplevel`. A failure whose stderr says "not a git repository" means "not a repository"; any other failure (dubious ownership, permissions) is an "other git failure" (§3.4). `Repo` name = `filepath.Base` of the trimmed output.
 2. `git -C <dir> rev-parse --verify --quiet HEAD`. Exit status non-zero means no commits: return `ErrNoCommits`.
 3. `git -C <dir> log --reverse --no-merges --no-renames --numstat -z --no-color --format=%x1e%H%x1f%aN%x1f%aE%x1f%at%x1f%s [--since=<v>] HEAD`
 

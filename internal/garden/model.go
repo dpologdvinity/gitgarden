@@ -24,9 +24,14 @@ type Garden struct {
 	rank    map[string]int  // key -> rank
 }
 
+// MaxVisibleRanks bounds how many ranks a snapshot keeps: at most 16 plant
+// slots (W=160) plus 7*(60-4) wildflower cells (H=60). Ranks beyond it are never drawn.
+const MaxVisibleRanks = 16 + 7*56
+
 type Snapshot struct {
-	Index int     // commit index just applied
-	Stats []Stats // per author, indexed by rank
+	Index   int     // commit index just applied
+	Stats   []Stats // per author, indexed by rank, at most MaxVisibleRanks long
+	MaxRank int     // highest rank with at least one commit so far
 }
 
 // Key is the identity of a commit's author.
@@ -68,18 +73,21 @@ func Build(repo string, commits []gitlog.Commit) *Garden {
 // RankOf returns the rank of the commit's author.
 func (g *Garden) RankOf(c gitlog.Commit) int { return g.rank[Key(c)] }
 
-// Snapshots returns cumulative stats at up to max sampled commits.
-func (g *Garden) Snapshots(max int) []Snapshot {
-	want := gifenc.Sample(len(g.Commits), max)
+// Snapshots returns cumulative stats at up to limit sampled commits.
+func (g *Garden) Snapshots(limit int) []Snapshot {
+	want := gifenc.Sample(len(g.Commits), limit)
 	cur := make([]Stats, len(g.Authors))
 	var out []Snapshot
+	maxRank := -1
 	for i, c := range g.Commits {
-		s := &cur[g.RankOf(c)]
+		r := g.RankOf(c)
+		s := &cur[r]
 		s.Commits++
 		s.Added += c.Added
 		s.Deleted += c.Deleted
+		maxRank = max(maxRank, r)
 		if len(out) < len(want) && want[len(out)] == i {
-			out = append(out, Snapshot{Index: i, Stats: slices.Clone(cur)})
+			out = append(out, Snapshot{Index: i, Stats: slices.Clone(cur[:min(len(cur), MaxVisibleRanks)]), MaxRank: maxRank})
 		}
 	}
 	return out
