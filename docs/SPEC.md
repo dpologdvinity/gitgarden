@@ -286,7 +286,7 @@ func Play(w io.Writer, keys <-chan byte, n int, frameAt func(i int) string,
     interval time.Duration, sleep func(time.Duration)) (quit bool)
 ```
 1. Write `"\x1b[?1049h\x1b[?25l"` (alternate screen, hide cursor).
-2. For `i = 0 .. n-1`: write `"\x1b[H"` + `frameAt(i)` with every `"\n"` replaced by `"\x1b[K\r\n"`, then `"\x1b[K"`. Then drain `keys` without blocking: if any byte is `q`, `Q`, `3` (Ctrl-C), or `27` (Esc), go to step 4 with `quit = true`. Otherwise sleep `interval`, in steps of at most 100 ms, draining `keys` after each step so a quit key works at low speeds.
+2. For `i = 0 .. n-1`: write `"\x1b[?2026h\x1b[H"` + `frameAt(i)` with every `"\n"` replaced by `"\x1b[K\r\n"`, then `"\x1b[K\x1b[?2026l"` (synchronized output, which stops flicker). Then drain `keys` without blocking: if any byte is `q`, `Q`, `3` (Ctrl-C), or `27` (Esc), go to step 4 with `quit = true`. Otherwise sleep `interval`, in steps of at most 100 ms, draining `keys` after each step so a quit key works at low speeds.
 3. After the last frame: `sleep(time.Second)`.
 4. Write `"\x1b[?25h\x1b[?1049l"`. Return `quit`.
 

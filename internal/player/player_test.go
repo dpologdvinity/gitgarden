@@ -16,8 +16,8 @@ func TestPlayAllFrames(t *testing.T) {
 	quit := Play(&out, make(chan byte, 1), 2, func(i int) string { return frames[i] },
 		100*time.Millisecond, func(d time.Duration) { slept = append(slept, d) })
 	want := "\x1b[?1049h\x1b[?25l" +
-		"\x1b[HA\x1b[K\r\nB\x1b[K" +
-		"\x1b[HC\x1b[K\r\nD\x1b[K" +
+		"\x1b[?2026h\x1b[HA\x1b[K\r\nB\x1b[K\x1b[?2026l" +
+		"\x1b[?2026h\x1b[HC\x1b[K\r\nD\x1b[K\x1b[?2026l" +
 		"\x1b[?25h\x1b[?1049l"
 	if quit || out.String() != want {
 		t.Fatalf("quit %v out %q", quit, out.String())
