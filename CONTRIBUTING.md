@@ -32,7 +32,7 @@ go build ./... && go test ./...
 * Build repositories with `internal/testrepo`; never depend on the repository you run the tests in.
 * Output tests use golden files in `testdata/golden`. After an intended change, regenerate with
   `go test ./internal/<pkg> -update`, then read the diff before committing.
-* Keep line coverage at or above 80% overall (CI enforces it).
+* Keep statement coverage at or above 80% overall (CI enforces it).
 
 ## Code style
 

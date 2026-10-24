@@ -184,15 +184,15 @@ type Snapshot struct {
     Index int     // commit index just applied (0-based)
     Stats []Stats // per author, indexed by rank
 }
-func (g *Garden) Snapshots(max int) []Snapshot
+func (g *Garden) Snapshots(limit int) []Snapshot
 ```
-- `n = len(Commits)`. The sampled indices are `Sample(n, max)` (§5.3). Walk the commits once in order, add each commit's (1, Added, Deleted) to its author's Stats, and copy the Stats slice whenever the current index is in the sample set.
-- Play mode uses `max = 600`. GIF mode uses `max = 300`. Still mode uses only the last snapshot (`Snapshots(1)` returns just index `n-1`).
+- `n = len(Commits)`. The sampled indices are `Sample(n, limit)` (§5.3). Walk the commits once in order, add each commit's (1, Added, Deleted) to its author's Stats, and copy the Stats slice whenever the current index is in the sample set.
+- Play mode uses `limit = 600`. GIF mode uses `limit = 300`. Still mode uses only the last snapshot (`Snapshots(1)` returns just index `n-1`).
 
 ### 5.3 Sampling (shared by gitgarden and replay)
-`func Sample(n, max int) []int` (package `internal/gifenc`, reused by garden):
-- `n <= 0`: empty. `max == 1`: `[n-1]`. `n <= max`: `[0, 1, ..., n-1]`.
-- Otherwise for `k = 0 .. max-1`: `idx = k*(n-1)/(max-1)` (integer division). The result is strictly increasing, starts at 0, and ends at `n-1`.
+`func Sample(n, limit int) []int` (package `internal/gifenc`, reused by garden):
+- `n <= 0`: empty. `limit == 1`: `[n-1]`. `n <= limit`: `[0, 1, ..., n-1]`.
+- Otherwise for `k = 0 .. limit-1`: `idx = k*(n-1)/(limit-1)` (integer division). The result is strictly increasing, starts at 0, and ends at `n-1`.
 
 ## 6. Layout (package `internal/garden`, file `layout.go`)
 
