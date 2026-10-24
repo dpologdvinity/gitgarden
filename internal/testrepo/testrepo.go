@@ -35,7 +35,7 @@ func (r *Repo) run(name, email string, args ...string) string {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = r.Dir
 	cmd.Env = append(os.Environ(),
-		"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1",
+		"GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1",
 		"GIT_AUTHOR_NAME="+name, "GIT_AUTHOR_EMAIL="+email,
 		"GIT_COMMITTER_NAME=Fixture", "GIT_COMMITTER_EMAIL=fixture@example.com",
 		"GIT_AUTHOR_DATE="+d, "GIT_COMMITTER_DATE="+d)
