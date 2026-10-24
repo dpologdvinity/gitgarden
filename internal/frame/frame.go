@@ -6,8 +6,10 @@ import (
 	"strings"
 )
 
+// Color is an index into Palette. BG is the frame background; FG is the default text color.
 type Color uint8
 
+// The palette indexes. The order is fixed because the GIF palette uses the same indexes.
 const (
 	BG Color = iota
 	FG
@@ -35,16 +37,19 @@ var Palette = [16][3]uint8{
 	{0x56, 0xb6, 0xc2}, {0x2c, 0x31, 0x3a}, {0xc6, 0x78, 0xdd}, {0x98, 0xc3, 0x79},
 }
 
+// Cell is one character position: a rune with a foreground and a background color.
 type Cell struct {
 	Ch     rune
 	FG, BG Color
 }
 
+// Grid is a W x H array of cells stored row by row: the cell at (x, y) is Cells[y*W+x].
 type Grid struct {
 	W, H  int
 	Cells []Cell // row-major
 }
 
+// New returns a w x h grid filled with spaces in the default colors.
 func New(w, h int) *Grid {
 	g := &Grid{W: w, H: h, Cells: make([]Cell, w*h)}
 	for i := range g.Cells {
@@ -53,10 +58,13 @@ func New(w, h int) *Grid {
 	return g
 }
 
+// in reports whether (x, y) lies inside the grid.
 func (g *Grid) in(x, y int) bool { return x >= 0 && y >= 0 && x < g.W && y < g.H }
 
+// At returns the cell at (x, y). The caller must pass in-range coordinates.
 func (g *Grid) At(x, y int) Cell { return g.Cells[y*g.W+x] }
 
+// Set writes ch with color fg at (x, y), keeping the background. Out-of-range coordinates are ignored.
 func (g *Grid) Set(x, y int, ch rune, fg Color) {
 	if g.in(x, y) {
 		c := &g.Cells[y*g.W+x]
@@ -64,6 +72,7 @@ func (g *Grid) Set(x, y int, ch rune, fg Color) {
 	}
 }
 
+// SetBG sets the background color at (x, y). Out-of-range coordinates are ignored.
 func (g *Grid) SetBG(x, y int, bg Color) {
 	if g.in(x, y) {
 		g.Cells[y*g.W+x].BG = bg
@@ -78,6 +87,8 @@ func (g *Grid) Text(x, y int, s string, fg Color) {
 	}
 }
 
+// String renders the grid as plain text: one line per row, trailing spaces removed,
+// and a newline after every row including the last. Colors are dropped.
 func (g *Grid) String() string {
 	var sb strings.Builder
 	for y := 0; y < g.H; y++ {
@@ -91,6 +102,8 @@ func (g *Grid) String() string {
 	return sb.String()
 }
 
+// ANSI renders the grid with 24-bit color escape codes. It emits a new color sequence only when
+// the colors change, resets at the end of each row, and does not trim trailing spaces.
 func (g *Grid) ANSI() string {
 	var sb strings.Builder
 	for y := 0; y < g.H; y++ {

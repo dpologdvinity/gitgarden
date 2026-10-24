@@ -8,6 +8,8 @@ import (
 	"testing"
 )
 
+// update is set by the -update test flag. Because the flag is registered here, it exists only in
+// test binaries of packages that import golden: run `go test ./internal/<pkg> -update` per package.
 var update = flag.Bool("update", false, "rewrite golden files")
 
 // Assert compares got with testdata/golden/<name>.txt; -update rewrites it.

@@ -2,6 +2,8 @@ package frame
 
 import "testing"
 
+// TestStringTrimsAndClips checks plain rendering: text is clipped at the grid edge, out-of-range writes
+// are ignored, and trailing spaces are removed.
 func TestStringTrimsAndClips(t *testing.T) {
 	g := New(5, 3)
 	g.Text(1, 0, "hello world", FG) // clipped at W
@@ -15,6 +17,7 @@ func TestStringTrimsAndClips(t *testing.T) {
 	}
 }
 
+// TestANSI checks the exact escape sequences, including that a color sequence is only emitted on change.
 func TestANSI(t *testing.T) {
 	g := New(2, 1)
 	g.Set(0, 0, 'a', FG)

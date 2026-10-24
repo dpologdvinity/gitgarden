@@ -16,6 +16,8 @@ import (
 	"github.com/dpologdvinity/gitgarden/internal/player"
 )
 
+// usage is the help text printed by -h (stdout) and after usage errors (stderr).
+// It must match SPEC section 3.3 exactly; a test compares against it.
 const usage = `usage: gitgarden [flags]
 
 Plays a repository's git history as an ASCII garden.
@@ -36,16 +38,29 @@ keys while playing: q quit
 
 // Env holds everything Run needs from the real OS, so tests can fake it.
 type Env struct {
-	Version   string
-	Stdin     io.Reader
+	// Version is printed by --version.
+	Version string
+	// Stdin is read one byte at a time for key presses while playing.
+	Stdin io.Reader
+	// StdoutTTY reports whether stdout is a terminal. It selects play mode and color.
 	StdoutTTY bool
-	TermSize  func() (w, h int, err error)
-	MakeRaw   func() (restore func(), err error) // nil when stdin is not a terminal
-	Sleep     func(time.Duration)
-	Getenv    func(string) string
+	// TermSize returns the terminal size in columns and rows.
+	TermSize func() (w, h int, err error)
+	// MakeRaw puts the terminal in raw mode so single key presses are readable, and returns a
+	// function that undoes it. It is nil when stdin is not a terminal.
+	MakeRaw func() (restore func(), err error)
+	// Sleep pauses between frames. Tests replace it with a no-op so playback is instant.
+	Sleep func(time.Duration)
+	// Getenv reads an environment variable (only NO_COLOR is used).
+	Getenv func(string) string
 }
 
+// Run executes gitgarden with the given arguments and returns the process exit code.
+// It writes the garden (or GIF summary) to stdout and errors to stderr. All access to
+// the terminal, the clock and the environment goes through env, so tests can fake them.
+// Exit codes: 0 success, 1 no commits to plant, 2 usage or git error (SPEC section 3.4).
 func Run(args []string, stdout, stderr io.Writer, env Env) int {
+	// Parse flags. The flag package prints its own error line to stderr; Run adds the usage text.
 	fs := flag.NewFlagSet("gitgarden", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	fs.Usage = func() {}
@@ -60,18 +75,19 @@ func Run(args []string, stdout, stderr io.Writer, env Env) int {
 	version := fs.Bool("version", false, "")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
-			io.WriteString(stdout, usage)
+			_, _ = io.WriteString(stdout, usage)
 			return 0
 		}
-		io.WriteString(stderr, usage)
+		_, _ = io.WriteString(stderr, usage)
 		return 2
 	}
 	if *version {
-		fmt.Fprintf(stdout, "gitgarden %s\n", env.Version)
+		_, _ = fmt.Fprintf(stdout, "gitgarden %s\n", env.Version)
 		return 0
 	}
+	// Validate flags in a fixed order so each invalid input has exactly one error message.
 	fail := func(msg string) int {
-		fmt.Fprintf(stderr, "gitgarden: %s\n", msg)
+		_, _ = fmt.Fprintf(stderr, "gitgarden: %s\n", msg)
 		return 2
 	}
 	switch {
@@ -89,17 +105,19 @@ func Run(args []string, stdout, stderr io.Writer, env Env) int {
 		return fail("--gif supports at most 120x40 cells")
 	}
 
+	// Read history, then turn git's errors into the messages and exit codes of SPEC section 3.4.
 	repo, commits, err := gitlog.Load(*dir, *since)
 	switch {
 	case errors.Is(err, gitlog.ErrNotRepo):
 		return fail("not a git repository: " + *dir)
 	case errors.Is(err, gitlog.ErrNoCommits):
-		fmt.Fprintf(stderr, "gitgarden: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "gitgarden: %v\n", err)
 		return 1
 	case err != nil:
 		return fail(err.Error())
 	}
 
+	// Build the garden model and choose how to render a frame (plain text or ANSI color).
 	w, h := frameSize(env, *width, *height, *gifPath != "")
 	g := garden.Build(repo, commits)
 	color := env.StdoutTTY && env.Getenv("NO_COLOR") == "" && !*noColor
@@ -113,6 +131,7 @@ func Run(args []string, stdout, stderr io.Writer, env Env) int {
 		return render(garden.Draw(g, g.Snapshots(1)[0], w, h))
 	}
 
+	// Mode selection, first match wins (SPEC section 3.1): GIF, still, non-terminal stdout, play.
 	switch {
 	case *gifPath != "":
 		ss := g.Snapshots(300)
@@ -123,9 +142,9 @@ func Run(args []string, stdout, stderr io.Writer, env Env) int {
 		if err := writeGIF(*gifPath, grids, gifenc.Delay(*speed)); err != nil {
 			return fail(fmt.Sprintf("cannot write %s: %v", *gifPath, err))
 		}
-		fmt.Fprintf(stdout, "wrote %s (%d frames, %dx%d)\n", *gifPath, len(grids), w*gifenc.CellW, h*gifenc.CellH)
+		_, _ = fmt.Fprintf(stdout, "wrote %s (%d frames, %dx%d)\n", *gifPath, len(grids), w*gifenc.CellW, h*gifenc.CellH)
 	case *still || !env.StdoutTTY:
-		io.WriteString(stdout, stillFrame())
+		_, _ = io.WriteString(stdout, stillFrame())
 	default:
 		ss := g.Snapshots(600)
 		restore := func() {}
@@ -134,6 +153,7 @@ func Run(args []string, stdout, stderr io.Writer, env Env) int {
 				restore = r
 			}
 		}
+		// Forward key presses to the player. The send is non-blocking so a held key never stalls the reader.
 		keys := make(chan byte, 16)
 		go func() {
 			buf := make([]byte, 1)
@@ -154,20 +174,22 @@ func Run(args []string, stdout, stderr io.Writer, env Env) int {
 		}, interval, env.Sleep)
 		restore() // before the final frame: raw mode disables \n -> \r\n
 		if !quit {
-			io.WriteString(stdout, stillFrame())
+			_, _ = io.WriteString(stdout, stillFrame())
 		}
 	}
 	return 0
 }
 
+// writeGIF encodes grids as an animated GIF at path. If encoding fails it removes the
+// partly written file so a truncated GIF is never left behind.
 func writeGIF(path string, grids []*frame.Grid, delay int) error {
 	f, err := os.Create(path)
 	if err != nil {
 		return err
 	}
 	if err := gifenc.Write(f, grids, delay); err != nil {
-		f.Close()
-		os.Remove(path) // no truncated GIF left behind
+		_ = f.Close()
+		_ = os.Remove(path) // no truncated GIF left behind
 		return err
 	}
 	return f.Close()

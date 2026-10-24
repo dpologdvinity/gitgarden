@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// TestPlayAllFrames checks the exact bytes written and the sleeps for a full playback.
 func TestPlayAllFrames(t *testing.T) {
 	var out bytes.Buffer
 	var slept []time.Duration
@@ -26,6 +27,7 @@ func TestPlayAllFrames(t *testing.T) {
 	}
 }
 
+// TestPlayQuitKeys checks that q, Q, Ctrl-C and Esc each stop playback after the first frame.
 func TestPlayQuitKeys(t *testing.T) {
 	for _, k := range []byte{'q', 'Q', 3, 27} {
 		keys := make(chan byte, 1)
@@ -39,6 +41,8 @@ func TestPlayQuitKeys(t *testing.T) {
 	}
 }
 
+// TestPlayQuitDuringLongInterval checks that a key pressed during a long frame interval is noticed
+// within one polling step instead of after the whole interval.
 func TestPlayQuitDuringLongInterval(t *testing.T) {
 	keys := make(chan byte, 1)
 	var slept []time.Duration

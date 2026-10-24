@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// x0s returns the left column of each slot.
 func x0s(s []Slot) []int {
 	var out []int
 	for _, v := range s {
@@ -14,6 +15,7 @@ func x0s(s []Slot) []int {
 	return out
 }
 
+// TestSlots checks slot positions and the wildflower cut-over for 1, 8, 9, 12 and 200 authors at several widths.
 func TestSlots(t *testing.T) {
 	s, fw := Slots(80, 1)
 	if !slices.Equal(x0s(s), []int{36}) || fw != 1 {
@@ -37,6 +39,7 @@ func TestSlots(t *testing.T) {
 	}
 }
 
+// TestStemHeight checks the stem height formula and its cap by frame height.
 func TestStemHeight(t *testing.T) {
 	for _, c := range [][3]int{{0, 24, 0}, {1, 24, 2}, {3, 24, 4}, {4, 24, 6}, {1000, 24, 19}, {1000, 12, 7}} {
 		if got := StemHeight(c[0], c[1]); got != c[2] {
@@ -45,6 +48,7 @@ func TestStemHeight(t *testing.T) {
 	}
 }
 
+// TestLeafCells checks the number and order of leaf candidate cells for a 6-row stem.
 func TestLeafCells(t *testing.T) {
 	c := LeafCells(10, 20, 6)
 	if len(c) != 18 || c[0] != [2]int{9, 15} || c[1] != [2]int{11, 15} ||
@@ -53,6 +57,7 @@ func TestLeafCells(t *testing.T) {
 	}
 }
 
+// TestLeafCountAndFallen checks the leaf and fallen-leaf counts, including the autumn bonus and the caps.
 func TestLeafCountAndFallen(t *testing.T) {
 	if LeafCount(Stats{5, 300, 50}, 18) != 15 || LeafCount(Stats{5, 10, 50}, 18) != 0 || LeafCount(Stats{5, 10000, 0}, 18) != 18 {
 		t.Fatal("LeafCount")
@@ -63,6 +68,7 @@ func TestLeafCountAndFallen(t *testing.T) {
 	}
 }
 
+// TestSeasonOf checks the season of every month.
 func TestSeasonOf(t *testing.T) {
 	want := []Season{Winter, Winter, Spring, Spring, Spring, Summer, Summer, Summer, Autumn, Autumn, Autumn, Winter}
 	for m := 1; m <= 12; m++ {

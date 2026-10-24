@@ -29,13 +29,15 @@ func New(t *testing.T) *Repo {
 	return r
 }
 
+// run runs git in the repository with a fixed, isolated environment: no user or system config,
+// a fixed committer, the given author, and the date for the current commit number.
 func (r *Repo) run(name, email string, args ...string) string {
 	r.t.Helper()
 	d := Date(r.n).Format(time.RFC3339)
 	cmd := exec.Command("git", args...)
 	cmd.Dir = r.Dir
 	cmd.Env = append(os.Environ(),
-		"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1",
+		"GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1",
 		"GIT_AUTHOR_NAME="+name, "GIT_AUTHOR_EMAIL="+email,
 		"GIT_COMMITTER_NAME=Fixture", "GIT_COMMITTER_EMAIL=fixture@example.com",
 		"GIT_AUTHOR_DATE="+d, "GIT_COMMITTER_DATE="+d)
