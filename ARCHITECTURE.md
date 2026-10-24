@@ -139,5 +139,7 @@ Tests use only the standard library:
   Linux, macOS and Windows, plus `govulncheck` and `goreleaser check`.
 * Pushing a tag `v*` runs `.github/workflows/release.yml`, which uses
   [GoReleaser](https://goreleaser.com) (`.goreleaser.yaml`) to build
-  linux/darwin/windows binaries for amd64 and arm64 and publish a GitHub release.
+  linux/darwin/windows binaries for amd64 and arm64, publish a GitHub release and update the
+  Homebrew cask in `dpologdvinity/homebrew-tap` (needs the `HOMEBREW_TAP_TOKEN` secret). The release
+  workflow runs the test suite on all three operating systems first.
 * Third-party actions are pinned by commit SHA and updated by Dependabot.
