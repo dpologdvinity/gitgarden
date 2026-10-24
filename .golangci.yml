@@ -1,0 +1,11 @@
+# golangci-lint v2 configuration. Run locally with `golangci-lint run ./...`.
+version: "2"
+linters:
+  default: standard # errcheck, govet, ineffassign, staticcheck, unused
+  enable:
+    - misspell
+    - revive # enforces doc comments on exported identifiers
+    - unconvert
+formatters:
+  enable:
+    - gofmt

@@ -17,23 +17,26 @@ import (
 )
 
 // CellW and CellH are the pixel size of one character cell: the size of the basicfont 7x13 face.
-const CellW, CellH = 7, 13
+const (
+	CellW = 7
+	CellH = 13
+)
 
-// Sample picks at most max strictly increasing indices from 0..n-1, always
+// Sample picks at most limit strictly increasing indices from 0..n-1, always
 // including the first and last.
-func Sample(n, max int) []int {
+func Sample(n, limit int) []int {
 	out := []int{}
 	switch {
 	case n <= 0:
-	case max == 1:
+	case limit == 1:
 		out = append(out, n-1)
-	case n <= max:
+	case n <= limit:
 		for i := 0; i < n; i++ {
 			out = append(out, i)
 		}
 	default:
-		for k := 0; k < max; k++ {
-			out = append(out, k*(n-1)/(max-1))
+		for k := 0; k < limit; k++ {
+			out = append(out, k*(n-1)/(limit-1))
 		}
 	}
 	return out
