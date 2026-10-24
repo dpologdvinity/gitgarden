@@ -29,6 +29,8 @@ func New(t *testing.T) *Repo {
 	return r
 }
 
+// run runs git in the repository with a fixed, isolated environment: no user or system config,
+// a fixed committer, the given author, and the date for the current commit number.
 func (r *Repo) run(name, email string, args ...string) string {
 	r.t.Helper()
 	d := Date(r.n).Format(time.RFC3339)

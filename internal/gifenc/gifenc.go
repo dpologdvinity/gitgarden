@@ -16,6 +16,7 @@ import (
 	"github.com/dpologdvinity/gitgarden/internal/frame"
 )
 
+// CellW and CellH are the pixel size of one character cell: the size of the basicfont 7x13 face.
 const CellW, CellH = 7, 13
 
 // Sample picks at most max strictly increasing indices from 0..n-1, always
@@ -43,6 +44,7 @@ func Delay(speed float64) int {
 	return max(2, int(math.Round(10/speed)))
 }
 
+// palette converts frame.Palette to an image palette, in the same index order as frame.Color.
 func palette() color.Palette {
 	pal := make(color.Palette, len(frame.Palette))
 	for i, c := range frame.Palette {

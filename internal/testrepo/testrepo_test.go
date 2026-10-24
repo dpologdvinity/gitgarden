@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// TestCommitUsesFixedDatesAndAuthor checks that commits get the given author, the fixed committer and one date per month.
 func TestCommitUsesFixedDatesAndAuthor(t *testing.T) {
 	r := New(t)
 	r.Write("a/b.txt", "hi\n")

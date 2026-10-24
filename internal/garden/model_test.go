@@ -8,10 +8,12 @@ import (
 	"github.com/dpologdvinity/gitgarden/internal/gitlog"
 )
 
+// cm returns a commit by the given author with the given line counts.
 func cm(name, email string, add, del int) gitlog.Commit {
 	return gitlog.Commit{Name: name, Email: email, Added: add, Deleted: del}
 }
 
+// TestBuildRanking checks the order of authors, including every tie-break, and that the latest name wins.
 func TestBuildRanking(t *testing.T) {
 	g := Build("demo", []gitlog.Commit{
 		cm("Cy", "cy@x", 5, 0), // 1 commit, 5 added, first=0
@@ -32,6 +34,7 @@ func TestBuildRanking(t *testing.T) {
 	}
 }
 
+// TestBuildMergesEmailCase checks that emails differing only in case are one author, and the key used when the email is empty.
 func TestBuildMergesEmailCase(t *testing.T) {
 	g := Build("demo", []gitlog.Commit{cm("A", "Ada@X.org", 1, 0), cm("A", "ada@x.org", 1, 0)})
 	if len(g.Authors) != 1 || g.Authors[0].Key != "ada@x.org" {
@@ -42,6 +45,7 @@ func TestBuildMergesEmailCase(t *testing.T) {
 	}
 }
 
+// TestSnapshots checks which commits are sampled and that stats are cumulative and copied per snapshot.
 func TestSnapshots(t *testing.T) {
 	var cs []gitlog.Commit
 	for i := 0; i < 10; i++ {
@@ -57,6 +61,7 @@ func TestSnapshots(t *testing.T) {
 	}
 }
 
+// TestSnapshotStatsAreBounded checks that a snapshot never keeps more than MaxVisibleRanks ranks, however many authors there are.
 func TestSnapshotStatsAreBounded(t *testing.T) {
 	var cs []gitlog.Commit
 	for i := 0; i < 1000; i++ { // 1000 authors; author 0 has the most commits
@@ -72,6 +77,7 @@ func TestSnapshotStatsAreBounded(t *testing.T) {
 	}
 }
 
+// TestSnapshotTracksFarWildflower checks that MaxRank still records an author whose rank is beyond the kept stats.
 func TestSnapshotTracksFarWildflower(t *testing.T) {
 	cs := []gitlog.Commit{cm("Last", "last@x", 1, 0)} // rank 1000 after the others below
 	for i := 0; i < 1000; i++ {

@@ -15,18 +15,21 @@ import (
 	"github.com/dpologdvinity/gitgarden/internal/testrepo"
 )
 
+// fakeEnv returns an Env for a non-terminal run: no TTY, no size, instant sleep, empty environment.
 func fakeEnv() Env {
 	return Env{Version: "1.2.3", Stdin: strings.NewReader(""),
 		TermSize: func() (int, int, error) { return 0, 0, errors.New("no tty") },
 		Sleep:    func(time.Duration) {}, Getenv: func(string) string { return "" }}
 }
 
+// run calls Run with in-memory writers and returns stdout, stderr and the exit code.
 func run(env Env, args ...string) (string, string, int) {
 	var o, e bytes.Buffer
 	code := Run(args, &o, &e, env)
 	return o.String(), e.String(), code
 }
 
+// TestUsageErrors checks that every invalid flag combination prints its exact message and exits 2.
 func TestUsageErrors(t *testing.T) {
 	cases := []struct {
 		args []string
@@ -51,6 +54,7 @@ func TestUsageErrors(t *testing.T) {
 	}
 }
 
+// TestHelpAndVersion checks that -h prints the usage text and --version prints the version, both exit 0.
 func TestHelpAndVersion(t *testing.T) {
 	if out, _, code := run(fakeEnv(), "-h"); code != 0 || out != usage {
 		t.Fatalf("help %d %q", code, out)
@@ -60,6 +64,7 @@ func TestHelpAndVersion(t *testing.T) {
 	}
 }
 
+// TestRepoErrors checks the exit codes and messages for a non-repository (2) and an empty repository (1).
 func TestRepoErrors(t *testing.T) {
 	dir := t.TempDir()
 	if _, e, code := run(fakeEnv(), "-C", dir, "--still"); code != 2 || e != "gitgarden: not a git repository: "+dir+"\n" {
@@ -71,6 +76,7 @@ func TestRepoErrors(t *testing.T) {
 	}
 }
 
+// threeAuthors builds a fixture repository with 12 commits spread over authors Ada, Bob and Cy.
 func threeAuthors(t *testing.T) *testrepo.Repo {
 	r := testrepo.New(t)
 	for i := 0; i < 12; i++ {
@@ -81,6 +87,7 @@ func threeAuthors(t *testing.T) *testrepo.Repo {
 	return r
 }
 
+// TestStillGolden compares the --still output with a golden file.
 func TestStillGolden(t *testing.T) {
 	r := threeAuthors(t)
 	out, _, code := run(fakeEnv(), "-C", r.Dir, "--still", "--width", "60", "--height", "16")
@@ -90,6 +97,7 @@ func TestStillGolden(t *testing.T) {
 	golden.Assert(t, "still_three_authors", strings.ReplaceAll(out, filepath.Base(r.Dir), "REPO"))
 }
 
+// TestNonTTYFallsBackToStill checks that a run with no flags and no terminal prints the 80x24 still frame, with no escape codes.
 func TestNonTTYFallsBackToStill(t *testing.T) {
 	r := threeAuthors(t)
 	a, _, _ := run(fakeEnv(), "-C", r.Dir)
@@ -99,6 +107,7 @@ func TestNonTTYFallsBackToStill(t *testing.T) {
 	}
 }
 
+// TestGifExport checks the --gif summary line, the decoded frame count and delays, and the write-error path.
 func TestGifExport(t *testing.T) {
 	r := threeAuthors(t)
 	path := filepath.Join(t.TempDir(), "out.gif")
@@ -117,6 +126,7 @@ func TestGifExport(t *testing.T) {
 	}
 }
 
+// TestPlayMode checks the play-mode output: alternate screen, one frame per commit, NO_COLOR honored, and the final frame left on screen.
 func TestPlayMode(t *testing.T) {
 	r := threeAuthors(t)
 	env := fakeEnv()
@@ -137,6 +147,7 @@ func TestPlayMode(t *testing.T) {
 	}
 }
 
+// TestTinyTerminalClamps checks that a terminal smaller than 40x12 is clamped to 40x12 instead of failing.
 func TestTinyTerminalClamps(t *testing.T) {
 	r := threeAuthors(t)
 	env := fakeEnv()
@@ -149,17 +160,21 @@ func TestTinyTerminalClamps(t *testing.T) {
 	}
 }
 
+// orderWriter records each Write in a shared event log so a test can check ordering against other events.
 type orderWriter struct {
 	events *[]string
 	last   string
 }
 
+// Write appends a "write" event and remembers the last chunk written.
 func (w *orderWriter) Write(p []byte) (int, error) {
 	w.last = string(p)
 	*w.events = append(*w.events, "write")
 	return len(p), nil
 }
 
+// TestPlayRestoresTerminalBeforeFinalFrame checks that raw mode is undone before the final frame is
+// printed. In raw mode the terminal does not turn \n into \r\n, so printing earlier would staircase the output.
 func TestPlayRestoresTerminalBeforeFinalFrame(t *testing.T) {
 	r := threeAuthors(t)
 	var events []string

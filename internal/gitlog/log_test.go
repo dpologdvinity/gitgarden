@@ -10,6 +10,7 @@ import (
 	"github.com/dpologdvinity/gitgarden/internal/testrepo"
 )
 
+// fixture builds a three-commit repository with a mixed-case email, a binary file and a huge file.
 func fixture(t *testing.T) *testrepo.Repo {
 	r := testrepo.New(t)
 	r.Write("a.txt", "1\n2\n3\n")
@@ -22,6 +23,7 @@ func fixture(t *testing.T) *testrepo.Repo {
 	return r
 }
 
+// TestLoadParsesNumstat checks line counts, the huge cap, binary files, the unit separator in a subject, and UTC times.
 func TestLoadParsesNumstat(t *testing.T) {
 	r := fixture(t)
 	repo, cs, err := Load(r.Dir, "")
@@ -45,6 +47,7 @@ func TestLoadParsesNumstat(t *testing.T) {
 	}
 }
 
+// TestLoadAppliesMailmapAndSkipsMerges checks that .mailmap is applied and merge commits are left out.
 func TestLoadAppliesMailmapAndSkipsMerges(t *testing.T) {
 	r := testrepo.New(t)
 	r.Write(".mailmap", "Bob Builder <bob@example.com> <bobby@old.example>\n")
@@ -74,6 +77,7 @@ func TestLoadAppliesMailmapAndSkipsMerges(t *testing.T) {
 	}
 }
 
+// TestLoadSince checks that --since drops the older commits.
 func TestLoadSince(t *testing.T) {
 	_, cs, err := Load(fixture(t).Dir, "2024-02-01")
 	if err != nil || len(cs) != 2 || cs[0].Subject != "two" {
@@ -81,6 +85,7 @@ func TestLoadSince(t *testing.T) {
 	}
 }
 
+// TestLoadSinceExcludesAll checks that a --since date after every commit gives ErrNoCommits.
 func TestLoadSinceExcludesAll(t *testing.T) {
 	_, _, err := Load(fixture(t).Dir, "2030-01-01")
 	if !errors.Is(err, ErrNoCommits) {
@@ -88,6 +93,7 @@ func TestLoadSinceExcludesAll(t *testing.T) {
 	}
 }
 
+// TestLoadEmptyRepoAndNotRepo checks ErrNoCommits for a repository without commits and ErrNotRepo for a plain directory.
 func TestLoadEmptyRepoAndNotRepo(t *testing.T) {
 	if _, _, err := Load(testrepo.New(t).Dir, ""); !errors.Is(err, ErrNoCommits) {
 		t.Fatalf("empty repo: %v", err)
@@ -97,6 +103,7 @@ func TestLoadEmptyRepoAndNotRepo(t *testing.T) {
 	}
 }
 
+// TestLoadFromSubdirUsesTopLevelName checks that the repository name comes from the top-level directory, not the directory passed in.
 func TestLoadFromSubdirUsesTopLevelName(t *testing.T) {
 	r := fixture(t)
 	r.Write("sub/x.txt", "x\n")
@@ -107,6 +114,7 @@ func TestLoadFromSubdirUsesTopLevelName(t *testing.T) {
 	}
 }
 
+// TestLoadSubjectWithRecordSeparator checks that a 0x1e byte inside a subject does not split a commit in two.
 func TestLoadSubjectWithRecordSeparator(t *testing.T) {
 	r := testrepo.New(t)
 	r.Write("a.txt", "x\n")
@@ -119,6 +127,7 @@ func TestLoadSubjectWithRecordSeparator(t *testing.T) {
 	}
 }
 
+// TestLoadDubiousOwnershipIsNotReportedAsNotRepo checks that only git's "not a git repository" error maps to ErrNotRepo.
 func TestLoadDubiousOwnershipIsNotReportedAsNotRepo(t *testing.T) {
 	err := classifyRevParse(&GitError{Args: []string{"rev-parse"}, Stderr: "fatal: detected dubious ownership in repository at '/x'\n"})
 	var ge *GitError

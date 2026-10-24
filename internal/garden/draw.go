@@ -6,6 +6,7 @@ import (
 	"github.com/dpologdvinity/gitgarden/internal/frame"
 )
 
+// wildColors is the repeating color cycle for wildflowers, indexed by wildflower number.
 var wildColors = [...]frame.Color{frame.Pink, frame.Yellow, frame.Purple, frame.Blue, frame.Cyan, frame.Red}
 
 // Sanitize replaces every rune outside printable ASCII with '?'.
@@ -19,6 +20,8 @@ func Sanitize(s string) string {
 	return string(r)
 }
 
+// leaf returns the glyph and color of leaf number j for the season (SPEC section 7.2).
+// Spring mixes pink blossoms in, autumn alternates orange and red, winter is white snow.
 func leaf(season Season, j int) (rune, frame.Color) {
 	switch season {
 	case Spring:
@@ -37,6 +40,7 @@ func leaf(season Season, j int) (rune, frame.Color) {
 	return '*', frame.White
 }
 
+// truncate cuts s to at most n runes. It is used on already sanitized (ASCII) text.
 func truncate(s string, n int) string {
 	if r := []rune(s); len(r) > n {
 		return string(r[:n])
@@ -110,6 +114,8 @@ func Draw(g *Garden, s Snapshot, w, h int) *frame.Grid {
 	return fr
 }
 
+// drawPlant draws one author's plant into fr: the stem, then leaves in candidate order,
+// then fallen leaves on the base row. cx is the center column, b the base row and h the frame height.
 func drawPlant(fr *frame.Grid, st Stats, cx, b, h int, season Season) {
 	stem := StemHeight(st.Commits, h)
 	for y := b - stem + 1; y <= b; y++ {

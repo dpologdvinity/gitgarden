@@ -12,32 +12,42 @@ import (
 	"time"
 )
 
+// HugeCap is the largest added or deleted line count kept for one commit. A commit above it is marked Huge.
 const HugeCap = 1000
 
+// Errors returned by Load. Callers compare them with errors.Is.
 var (
 	ErrNoCommits  = errors.New("no commits found")
 	ErrNotRepo    = errors.New("not a git repository")
 	ErrGitMissing = errors.New("git not found in PATH")
 )
 
+// Commit is one non-merge commit with its line counts. Added and Deleted are capped at HugeCap;
+// Huge records whether either raw total was above the cap.
 type Commit struct {
-	Hash, Name, Email string
-	Time              time.Time
-	Subject           string
-	Added, Deleted    int
-	Huge              bool
+	Hash    string
+	Name    string    // author name, after .mailmap
+	Email   string    // author email, after .mailmap, case unchanged
+	Time    time.Time // author time in UTC
+	Subject string
+	Added   int  // lines added, capped at HugeCap
+	Deleted int  // lines deleted, capped at HugeCap
+	Huge    bool // true if the raw added or deleted total was above HugeCap
 }
 
+// GitError is a git command that failed. It carries the arguments and git's stderr.
 type GitError struct {
-	Args   []string
-	Stderr string
+	Args   []string // git arguments, without the leading -C <dir>
+	Stderr string   // everything git wrote to stderr
 }
 
+// Error formats the failure as "git <args>: <first line of stderr>".
 func (e *GitError) Error() string {
 	first, _, _ := strings.Cut(strings.TrimSpace(e.Stderr), "\n")
 	return "git " + strings.Join(e.Args, " ") + ": " + first
 }
 
+// git runs `git -C dir args...` with LC_ALL=C and returns its stdout. A non-zero exit becomes a *GitError.
 func git(dir string, args ...string) (string, error) {
 	full := append([]string{"-C", dir}, args...)
 	cmd := exec.Command("git", full...)
@@ -53,6 +63,7 @@ func git(dir string, args ...string) (string, error) {
 
 // Load returns the repo name and its non-merge commits, oldest first.
 func Load(dir, since string) (repo string, commits []Commit, err error) {
+	// 1. git must exist; then find the repository root to get its name.
 	if _, err := exec.LookPath("git"); err != nil {
 		return "", nil, ErrGitMissing
 	}
@@ -61,9 +72,12 @@ func Load(dir, since string) (repo string, commits []Commit, err error) {
 		return "", nil, classifyRevParse(err)
 	}
 	repo = filepath.Base(strings.TrimSpace(top))
+	// 2. A repository without HEAD has no commits yet.
 	if _, err := git(dir, "rev-parse", "--verify", "--quiet", "HEAD"); err != nil {
 		return repo, nil, ErrNoCommits
 	}
+	// 3. One git log call, oldest first, merges skipped. -z and the 0x1e/0x1f separators keep
+	// parsing safe for names and subjects that contain spaces, tabs or newlines.
 	args := []string{"log", "--reverse", "--no-merges", "--no-renames", "--numstat", "-z",
 		"--no-color", "--format=%x1e%H%x1f%aN%x1f%aE%x1f%at%x1f%s"}
 	if since != "" {
@@ -87,6 +101,8 @@ func Load(dir, since string) (repo string, commits []Commit, err error) {
 	return repo, commits, nil
 }
 
+// parseChunk parses one log record: a header (hash, name, email, unix time, subject separated by
+// 0x1f), a NUL, then NUL-separated numstat entries "added\tdeleted\tpath". Binary files count as 0 lines.
 func parseChunk(chunk string) (Commit, error) {
 	header, rest, _ := strings.Cut(chunk, "\x00")
 	rest = strings.TrimPrefix(rest, "\n")
@@ -150,6 +166,7 @@ func splitRecords(out string) []string {
 	return recs
 }
 
+// hashFollows reports whether s starts with a full commit hash (40 or 64 hex digits) and then 0x1f.
 func hashFollows(s string) bool {
 	n := 0
 	for n < len(s) && (s[n] >= '0' && s[n] <= '9' || s[n] >= 'a' && s[n] <= 'f') {

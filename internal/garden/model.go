@@ -10,13 +10,24 @@ import (
 	"github.com/dpologdvinity/gitgarden/internal/gitlog"
 )
 
+// Author holds the totals for one contributor over the loaded commits.
 type Author struct {
-	Key, Name                      string
-	Commits, Added, Deleted, First int
+	Key     string // identity: lower-case email, or "name:" + lower-case name when the email is empty
+	Name    string // display name: the name on the author's latest commit
+	Commits int    // number of commits
+	Added   int    // total lines added (each commit capped at gitlog.HugeCap)
+	Deleted int    // total lines deleted (each commit capped at gitlog.HugeCap)
+	First   int    // index of the author's first commit, used to break ranking ties
 }
 
-type Stats struct{ Commits, Added, Deleted int }
+// Stats is the running total for one author at some point in the history.
+type Stats struct {
+	Commits int // commits applied so far
+	Added   int // lines added so far
+	Deleted int // lines deleted so far
+}
 
+// Garden is the model of a repository: its commits and its ranked authors.
 type Garden struct {
 	Repo    string
 	Commits []gitlog.Commit // oldest first
@@ -28,6 +39,7 @@ type Garden struct {
 // slots (W=160) plus 7*(60-4) wildflower cells (H=60). Ranks beyond it are never drawn.
 const MaxVisibleRanks = 16 + 7*56
 
+// Snapshot is the state of the garden after one commit has been applied.
 type Snapshot struct {
 	Index   int     // commit index just applied
 	Stats   []Stats // per author, indexed by rank, at most MaxVisibleRanks long
@@ -42,6 +54,8 @@ func Key(c gitlog.Commit) string {
 	return strings.ToLower(c.Email)
 }
 
+// Build groups commits by author identity, totals each author and ranks them
+// (most commits first; ties by lines added, first appearance, then key).
 func Build(repo string, commits []gitlog.Commit) *Garden {
 	g := &Garden{Repo: repo, Commits: commits, rank: map[string]int{}}
 	byKey := map[string]*Author{}

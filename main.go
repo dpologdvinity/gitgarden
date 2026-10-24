@@ -1,3 +1,7 @@
+// Command gitgarden plays a git repository's history as an animated ASCII garden.
+//
+// This file only connects the real terminal, clock and environment to the cli
+// package; see ARCHITECTURE.md for how the rest fits together.
 package main
 
 import (
@@ -11,10 +15,14 @@ import (
 	"github.com/dpologdvinity/gitgarden/internal/cli"
 )
 
+// version is the program version. GoReleaser overwrites it at build time with -X main.version.
 var version = "dev"
 
+// main wires the real terminal, clock and environment into cli.Run and exits with its code.
+// It contains no logic of its own so that everything else can be tested without a terminal.
 func main() {
 	stdout, stdin := int(os.Stdout.Fd()), int(os.Stdin.Fd())
+	// MakeRaw stays nil unless stdin is a terminal, so piped input never changes terminal modes.
 	env := cli.Env{
 		Version:   version,
 		Stdin:     os.Stdin,

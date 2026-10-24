@@ -10,6 +10,7 @@ import (
 	"github.com/dpologdvinity/gitgarden/internal/frame"
 )
 
+// TestSample checks the sampled indices for empty, single, short and long inputs.
 func TestSample(t *testing.T) {
 	cases := []struct {
 		n, max int
@@ -25,12 +26,14 @@ func TestSample(t *testing.T) {
 	}
 }
 
+// TestDelay checks the speed-to-delay conversion and its 2-centisecond floor.
 func TestDelay(t *testing.T) {
 	if Delay(1) != 10 || Delay(4) != 3 || Delay(5) != 2 || Delay(100) != 2 || Delay(0.5) != 20 {
 		t.Fatal("delay")
 	}
 }
 
+// TestImageColors checks the image size, a background pixel and that a glyph is drawn in its color.
 func TestImageColors(t *testing.T) {
 	g := frame.New(2, 1)
 	g.SetBG(0, 0, frame.Bar)
@@ -55,6 +58,7 @@ func TestImageColors(t *testing.T) {
 	}
 }
 
+// TestWriteRoundTrip encodes frames and decodes them again to check the frame count, delays, loop count and size.
 func TestWriteRoundTrip(t *testing.T) {
 	gs := []*frame.Grid{frame.New(2, 1), frame.New(2, 1), frame.New(2, 1)}
 	var buf bytes.Buffer

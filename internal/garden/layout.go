@@ -6,8 +6,10 @@ import (
 	"time"
 )
 
+// Season is one of the four seasons, derived from the month of a commit (northern hemisphere).
 type Season int
 
+// The seasons.
 const (
 	Winter Season = iota
 	Spring
@@ -15,6 +17,7 @@ const (
 	Autumn
 )
 
+// String returns the lower-case season name used in the title row.
 func (s Season) String() string {
 	return [...]string{"winter", "spring", "summer", "autumn"}[s]
 }
@@ -33,7 +36,10 @@ func SeasonOf(t time.Time) Season {
 }
 
 // Slot is one 9-column plant cell; Author is a rank, or -1 for the wildflower slot.
-type Slot struct{ X0, Author int }
+type Slot struct {
+	X0     int // left column of the 7-column plant area
+	Author int // author rank, or -1 for the wildflower slot
+}
 
 // Slots lays out plant slots for width w. firstWild is the rank of the first
 // wildflower author, or nAuthors if there are none.
@@ -57,6 +63,7 @@ func Slots(w, nAuthors int) (slots []Slot, firstWild int) {
 	return slots, plants
 }
 
+// isqrt returns floor(sqrt(n)), or 0 for n <= 0.
 func isqrt(n int) int {
 	if n <= 0 {
 		return 0
@@ -84,10 +91,14 @@ func LeafCells(cx, b, stem int) [][2]int {
 	return out
 }
 
+// LeafCount returns how many leaves a plant shows: the square root of its net added lines,
+// limited to the number of candidate cells.
 func LeafCount(s Stats, nCandidates int) int {
 	return min(nCandidates, isqrt(s.Added-s.Deleted))
 }
 
+// Fallen returns how many fallen leaves lie at the foot of a plant: grows with deleted lines,
+// gets 2 extra in autumn, and never exceeds 6.
 func Fallen(s Stats, season Season) int {
 	f := min(6, isqrt(s.Deleted)/4)
 	if season == Autumn {
