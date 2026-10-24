@@ -223,7 +223,7 @@ func Slots(w, nAuthors int) (slots []Slot, firstWild int) // firstWild = rank of
 - If `s.Commits == 0`: draw nothing and no label.
 - Stem height: `h = min(2 * bits.Len(uint(s.Commits)), H - 5)`. Commits 1 gives 2, 2-3 gives 4, 4-7 gives 6, 8-15 gives 8, and so on.
 - Stem cells: rows `b-h+1 .. b` at column `cx`, char `|`, color Brown. If `h >= 6`, the top cell (row `b-h+1`) is `Y` instead.
-- Leaf candidates, in this exact order: for stem rows from the top (`i = 0` at row `b-h+1`) down to row `b-1` (row `b` never has leaves), for offsets `[-1, +1, -2, +2, -3, +3]`, keep offsets with `|o| <= min(3, 1 + i/2)`. Each candidate is the cell `(cx+o, b-h+1+i)`.
+- Leaf candidates form a teardrop crown at the top of the stem. Let `crown = max(1, min(h - 2, 8))` rows. For crown row `i = 0 .. crown-1` (row `b-h+1+i`, `i = 0` is the top), in the offset order `[-1, +1, -2, +2, -3, +3]`, keep offsets with `|o| <= min(3, 1 + i/2, crown - i)`. Each candidate is the cell `(cx+o, b-h+1+i)`. The crown widens by one cell every two rows, narrows on its last rows, and the lowest stem cells stay bare trunk (at most 30 candidates).
 - Leaf count: `L = min(len(candidates), isqrt(max(0, s.Added - s.Deleted)))`, where `isqrt(n) = floor(sqrt(n))`. The first `L` candidates get leaves. Leaf `j` is the j-th leaf in candidate order.
 - Fallen leaves: `F = min(6, isqrt(s.Deleted) / 4)`. In autumn, `F = min(6, F + 2)`. Fallen leaves are drawn on the base row `b` at offsets `[-3, +3, -2, +2, -1, +1]` (first `F`), char `,`, color Orange in autumn and Brown otherwise.
 

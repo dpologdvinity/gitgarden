@@ -82,7 +82,7 @@ order. Layout depends only on the final ranking, so plants never move while
 the animation plays. When there are more authors than slots, the last slot
 holds the "wildflowers": one `*` per remaining author, labeled `+N`.
 
-A plant's stem height grows with the logarithm of its commit count. The number
+A plant is a trunk with a teardrop-shaped crown of leaves at the top. The stem height grows with the logarithm of its commit count. The number
 of leaves is the square root of the net lines added, and fallen leaves grow
 with deleted lines. The season (from the month of the current commit) chooses
 leaf glyphs and colors. All geometry is in small pure functions (`StemHeight`,
