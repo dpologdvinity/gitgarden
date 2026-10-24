@@ -167,6 +167,7 @@ func writeGIF(path string, grids []*frame.Grid, delay int) error {
 	}
 	if err := gifenc.Write(f, grids, delay); err != nil {
 		f.Close()
+		os.Remove(path) // no truncated GIF left behind
 		return err
 	}
 	return f.Close()
