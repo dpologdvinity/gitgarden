@@ -25,6 +25,7 @@ Plays a repository's git history as an ASCII garden.
 flags:
   -C dir          repository directory (default ".")
   --since date    only plant commits after date (any git date)
+  --max-commits n only plant the latest n commits
   --speed x       playback speed multiplier (default 1)
   --still         print only the final frame
   --gif file      write an animated GIF instead of playing
@@ -67,6 +68,7 @@ func Run(args []string, stdout, stderr io.Writer, env Env) int {
 	fs.Usage = func() {}
 	dir := fs.String("C", ".", "")
 	since := fs.String("since", "", "")
+	maxCommits := fs.Int("max-commits", 0, "")
 	speed := fs.Float64("speed", 1, "")
 	still := fs.Bool("still", false, "")
 	gifPath := fs.String("gif", "", "")
@@ -87,6 +89,12 @@ func Run(args []string, stdout, stderr io.Writer, env Env) int {
 		_, _ = fmt.Fprintf(stdout, "gitgarden %s\n", env.Version)
 		return 0
 	}
+	var maxCommitsSpecified bool
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "max-commits" {
+			maxCommitsSpecified = true
+		}
+	})
 	// Validate flags in a fixed order so each invalid input has exactly one error message.
 	fail := func(msg string) int {
 		_, _ = fmt.Fprintf(stderr, "gitgarden: %s\n", msg)
@@ -95,6 +103,8 @@ func Run(args []string, stdout, stderr io.Writer, env Env) int {
 	switch {
 	case fs.NArg() > 0:
 		return fail("unexpected argument: " + fs.Arg(0))
+	case maxCommitsSpecified && *maxCommits <= 0:
+		return fail("--max-commits must be greater than 0")
 	case !(*speed > 0 && *speed <= 100):
 		return fail("--speed must be greater than 0 and at most 100")
 	case *width != 0 && (*width < 40 || *width > 160):
@@ -108,7 +118,7 @@ func Run(args []string, stdout, stderr io.Writer, env Env) int {
 	}
 
 	// Read history, then turn git's errors into the messages and exit codes of SPEC section 3.4.
-	repo, commits, err := gitlog.Load(*dir, *since)
+	repo, commits, err := gitlog.Load(*dir, *since, *maxCommits)
 	switch {
 	case errors.Is(err, gitlog.ErrNotRepo):
 		return fail("not a git repository: " + *dir)

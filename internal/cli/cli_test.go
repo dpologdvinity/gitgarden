@@ -36,6 +36,8 @@ func TestUsageErrors(t *testing.T) {
 		msg  string
 	}{
 		{[]string{"extra"}, "gitgarden: unexpected argument: extra\n"},
+		{[]string{"--max-commits", "0"}, "gitgarden: --max-commits must be greater than 0\n"},
+		{[]string{"--max-commits", "-1"}, "gitgarden: --max-commits must be greater than 0\n"},
 		{[]string{"--speed", "0"}, "gitgarden: --speed must be greater than 0 and at most 100\n"},
 		{[]string{"--speed", "101"}, "gitgarden: --speed must be greater than 0 and at most 100\n"},
 		{[]string{"--width", "39"}, "gitgarden: --width must be between 40 and 160\n"},
@@ -106,6 +108,18 @@ func TestSouthernFlag(t *testing.T) {
 	}
 	if !strings.Contains(out, "2024-12 summer") {
 		t.Fatalf("expected 2024-12 summer in output:\n%s", out)
+	}
+}
+
+// TestMaxCommitsFlag checks that --max-commits limits the loaded commits.
+func TestMaxCommitsFlag(t *testing.T) {
+	r := threeAuthors(t)
+	out, _, code := run(fakeEnv(), "-C", r.Dir, "--still", "--max-commits", "3")
+	if code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	if !strings.Contains(out, "3/3 commits") {
+		t.Fatalf("expected 3/3 commits, got:\n%s", out)
 	}
 }
 

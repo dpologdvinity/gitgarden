@@ -85,6 +85,17 @@ func TestLoadSince(t *testing.T) {
 	}
 }
 
+// TestLoadMaxCommits checks that maxCommits bounds the number of loaded commits to the latest ones.
+func TestLoadMaxCommits(t *testing.T) {
+	_, cs, err := Load(fixture(t).Dir, "", 2)
+	if err != nil || len(cs) != 2 {
+		t.Fatalf("err %v, %d commits", err, len(cs))
+	}
+	if cs[0].Subject != "two" || !strings.HasPrefix(cs[1].Subject, "three") {
+		t.Fatalf("wrong commits: %+v", cs)
+	}
+}
+
 // TestLoadSinceExcludesAll checks that a --since date after every commit gives ErrNoCommits.
 func TestLoadSinceExcludesAll(t *testing.T) {
 	_, _, err := Load(fixture(t).Dir, "2030-01-01")

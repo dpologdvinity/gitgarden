@@ -4,6 +4,7 @@ package gitlog
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -65,7 +66,8 @@ func git(dir string, args ...string) (string, error) {
 }
 
 // Load returns the repo name and its non-merge commits, oldest first.
-func Load(dir, since string) (repo string, commits []Commit, err error) {
+// If maxCommits is provided and > 0, at most that many of the latest commits are loaded.
+func Load(dir, since string, maxCommits ...int) (repo string, commits []Commit, err error) {
 	// 1. git must exist; then find the repository root to get its name.
 	if _, err := exec.LookPath("git"); err != nil {
 		return "", nil, ErrGitMissing
@@ -85,6 +87,9 @@ func Load(dir, since string) (repo string, commits []Commit, err error) {
 		"--no-color", "--format=%x1e%H%x1f%aN%x1f%aE%x1f%at%x1f%s"}
 	if since != "" {
 		args = append(args, "--since="+since)
+	}
+	if len(maxCommits) > 0 && maxCommits[0] > 0 {
+		args = append(args, fmt.Sprintf("-n%d", maxCommits[0]))
 	}
 	args = append(args, "HEAD")
 	out, err := git(dir, args...)
