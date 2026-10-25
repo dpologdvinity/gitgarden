@@ -46,6 +46,13 @@ func Play(w io.Writer, keys <-chan byte, n int, frameAt func(i int) string,
 			}
 		}
 	}
-	sleep(time.Second)
+	for left := time.Second; left > 0; {
+		d := min(left, pollEvery)
+		sleep(d)
+		left -= d
+		if quitKey() {
+			return true
+		}
+	}
 	return false
 }

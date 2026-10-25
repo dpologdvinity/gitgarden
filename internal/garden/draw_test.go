@@ -142,3 +142,12 @@ func TestDrawPaintsSkyBehindPlants(t *testing.T) {
 		t.Errorf("stem cell %+v: glyph must keep the sky background", c)
 	}
 }
+
+// TestTruncateNonPositive checks that truncate safely returns empty string on non-positive length.
+func TestTruncateNonPositive(t *testing.T) {
+	for _, n := range []int{0, -1, -5} {
+		if got := truncate("hello", n); got != "" {
+			t.Fatalf("truncate(\"hello\", %d) = %q, want \"\"", n, got)
+		}
+	}
+}

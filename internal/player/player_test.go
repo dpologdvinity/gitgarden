@@ -22,7 +22,8 @@ func TestPlayAllFrames(t *testing.T) {
 	if quit || out.String() != want {
 		t.Fatalf("quit %v out %q", quit, out.String())
 	}
-	if !slices.Equal(slept, []time.Duration{100 * time.Millisecond, 100 * time.Millisecond, time.Second}) {
+	wantSlept := append([]time.Duration{100 * time.Millisecond, 100 * time.Millisecond}, slices.Repeat([]time.Duration{100 * time.Millisecond}, 10)...)
+	if !slices.Equal(slept, wantSlept) {
 		t.Fatalf("slept %v", slept)
 	}
 }
@@ -54,6 +55,22 @@ func TestPlayQuitDuringLongInterval(t *testing.T) {
 			}
 		})
 	if !quit || len(slept) != 1 || slept[0] > 100*time.Millisecond {
+		t.Fatalf("quit %v slept %v", quit, slept)
+	}
+}
+
+// TestPlayQuitDuringFinalHold checks that hitting quit during the final 1-second hold exits promptly.
+func TestPlayQuitDuringFinalHold(t *testing.T) {
+	keys := make(chan byte, 1)
+	var slept []time.Duration
+	quit := Play(&bytes.Buffer{}, keys, 1, func(int) string { return "x" }, 10*time.Millisecond,
+		func(d time.Duration) {
+			slept = append(slept, d)
+			if len(slept) == 2 {
+				keys <- 'q'
+			}
+		})
+	if !quit || len(slept) > 3 {
 		t.Fatalf("quit %v slept %v", quit, slept)
 	}
 }

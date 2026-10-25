@@ -42,6 +42,9 @@ func leaf(season Season, j int) (rune, frame.Color) {
 
 // truncate cuts s to at most n runes. It is used on already sanitized (ASCII) text.
 func truncate(s string, n int) string {
+	if n <= 0 {
+		return ""
+	}
 	if r := []rune(s); len(r) > n {
 		return string(r[:n])
 	}

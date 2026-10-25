@@ -180,7 +180,7 @@ func Run(args []string, stdout, stderr io.Writer, env Env) int {
 	return 0
 }
 
-// writeGIF encodes grids as an animated GIF at path. If encoding fails it removes the
+// writeGIF encodes grids as an animated GIF at path. If encoding or closing fails it removes the
 // partly written file so a truncated GIF is never left behind.
 func writeGIF(path string, grids []*frame.Grid, delay int) error {
 	f, err := os.Create(path)
@@ -192,7 +192,11 @@ func writeGIF(path string, grids []*frame.Grid, delay int) error {
 		_ = os.Remove(path) // no truncated GIF left behind
 		return err
 	}
-	return f.Close()
+	if err := f.Close(); err != nil {
+		_ = os.Remove(path)
+		return err
+	}
+	return nil
 }
 
 // frameSize resolves the frame size: explicit flags win, then the terminal

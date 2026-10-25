@@ -44,6 +44,9 @@ type GitError struct {
 // Error formats the failure as "git <args>: <first line of stderr>".
 func (e *GitError) Error() string {
 	first, _, _ := strings.Cut(strings.TrimSpace(e.Stderr), "\n")
+	if first == "" {
+		return "git " + strings.Join(e.Args, " ") + ": command failed"
+	}
 	return "git " + strings.Join(e.Args, " ") + ": " + first
 }
 

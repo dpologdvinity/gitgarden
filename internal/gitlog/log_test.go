@@ -138,3 +138,15 @@ func TestLoadDubiousOwnershipIsNotReportedAsNotRepo(t *testing.T) {
 		t.Fatal("real non-repo must map to ErrNotRepo")
 	}
 }
+
+// TestGitErrorFormatting checks that Error handles non-empty and empty stderr cleanly.
+func TestGitErrorFormatting(t *testing.T) {
+	ge := &GitError{Args: []string{"status", "--short"}, Stderr: "fatal: boom\nextra"}
+	if got := ge.Error(); got != "git status --short: fatal: boom" {
+		t.Fatalf("got %q", got)
+	}
+	empty := &GitError{Args: []string{"status"}, Stderr: " \n "}
+	if got := empty.Error(); got != "git status: command failed" {
+		t.Fatalf("got %q", got)
+	}
+}
