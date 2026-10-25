@@ -18,6 +18,16 @@
 brew install dpologdvinity/tap/gitgarden
 ```
 
+### apt (Debian, Ubuntu)
+
+```
+curl -fsSL https://dpologdvinity.github.io/gitgarden/gitgarden.gpg | sudo tee /usr/share/keyrings/gitgarden.gpg > /dev/null
+echo "deb [signed-by=/usr/share/keyrings/gitgarden.gpg] https://dpologdvinity.github.io/gitgarden stable main" | sudo tee /etc/apt/sources.list.d/gitgarden.list
+sudo apt update && sudo apt install gitgarden
+```
+
+Packages are built for amd64 and arm64, and the repository is signed. Later `apt upgrade` runs pick up new releases.
+
 ### Go install
 
 ```
