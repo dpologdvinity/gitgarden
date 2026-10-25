@@ -22,17 +22,23 @@ func (s Season) String() string {
 	return [...]string{"winter", "spring", "summer", "autumn"}[s]
 }
 
-// SeasonOf maps the UTC month to a northern-hemisphere season.
-func SeasonOf(t time.Time) Season {
+// SeasonOf maps the UTC month to a northern-hemisphere season (or southern if southern is true).
+func SeasonOf(t time.Time, southern ...bool) Season {
+	var s Season
 	switch t.UTC().Month() {
 	case time.December, time.January, time.February:
-		return Winter
+		s = Winter
 	case time.March, time.April, time.May:
-		return Spring
+		s = Spring
 	case time.June, time.July, time.August:
-		return Summer
+		s = Summer
+	default:
+		s = Autumn
 	}
-	return Autumn
+	if len(southern) > 0 && southern[0] {
+		return (s + 2) % 4
+	}
+	return s
 }
 
 // Slot is one 9-column plant cell; Author is a rank, or -1 for the wildflower slot.

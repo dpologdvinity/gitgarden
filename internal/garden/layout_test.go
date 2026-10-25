@@ -90,3 +90,13 @@ func TestSeasonOf(t *testing.T) {
 		t.Fatal("String")
 	}
 }
+
+// TestSeasonOfSouthern checks that southern hemisphere inverts the seasons.
+func TestSeasonOfSouthern(t *testing.T) {
+	want := []Season{Summer, Summer, Autumn, Autumn, Autumn, Winter, Winter, Winter, Spring, Spring, Spring, Summer}
+	for m := 1; m <= 12; m++ {
+		if got := SeasonOf(time.Date(2024, time.Month(m), 1, 0, 0, 0, 0, time.UTC), true); got != want[m-1] {
+			t.Errorf("southern month %d: got %v want %v", m, got, want[m-1])
+		}
+	}
+}

@@ -29,10 +29,11 @@ type Stats struct {
 
 // Garden is the model of a repository: its commits and its ranked authors.
 type Garden struct {
-	Repo    string
-	Commits []gitlog.Commit // oldest first
-	Authors []Author        // ranked
-	rank    map[string]int  // key -> rank
+	Repo     string
+	Commits  []gitlog.Commit // oldest first
+	Authors  []Author        // ranked
+	Southern bool            // true if seasons use southern hemisphere
+	rank     map[string]int  // key -> rank
 }
 
 // MaxVisibleRanks bounds how many ranks a snapshot keeps: at most 16 plant

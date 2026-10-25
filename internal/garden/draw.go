@@ -55,7 +55,7 @@ func truncate(s string, n int) string {
 func Draw(g *Garden, s Snapshot, w, h int) *frame.Grid {
 	fr := frame.New(w, h)
 	cur := g.Commits[s.Index]
-	season := SeasonOf(cur.Time)
+	season := SeasonOf(cur.Time, g.Southern)
 	b := h - 4
 
 	// title

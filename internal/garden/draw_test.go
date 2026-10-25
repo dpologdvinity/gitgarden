@@ -49,6 +49,16 @@ func TestDrawSanitizesNames(t *testing.T) {
 	}
 }
 
+// TestDrawSouthernSeason checks that g.Southern renders January as summer.
+func TestDrawSouthernSeason(t *testing.T) {
+	g := Build("demo", []gitlog.Commit{dated(cm("Ada", "a@x", 1, 0), 2024, 1, 15, "init")})
+	g.Southern = true
+	out := Draw(g, g.Snapshots(1)[0], 50, 12).String()
+	if !strings.Contains(out, "2024-01 summer") {
+		t.Fatalf("want '2024-01 summer' in title row, got:\n%s", out)
+	}
+}
+
 // TestDrawTruncatesStatus checks that a very long subject is cut at the frame width.
 func TestDrawTruncatesStatus(t *testing.T) {
 	g := Build("demo", []gitlog.Commit{dated(cm("A", "a@x", 1, 0), 2024, 1, 1, strings.Repeat("s", 500))})

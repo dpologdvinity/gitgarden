@@ -31,6 +31,7 @@ flags:
   --width n       frame width in cells, 40-160 (default: terminal)
   --height n      frame height in cells, 12-60 (default: terminal)
   --no-color      disable color
+  --southern      use southern-hemisphere seasons
   --version       print version
 
 keys while playing: q quit
@@ -72,6 +73,7 @@ func Run(args []string, stdout, stderr io.Writer, env Env) int {
 	width := fs.Int("width", 0, "")
 	height := fs.Int("height", 0, "")
 	noColor := fs.Bool("no-color", false, "")
+	southern := fs.Bool("southern", false, "")
 	version := fs.Bool("version", false, "")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -120,6 +122,7 @@ func Run(args []string, stdout, stderr io.Writer, env Env) int {
 	// Build the garden model and choose how to render a frame (plain text or ANSI color).
 	w, h := frameSize(env, *width, *height, *gifPath != "")
 	g := garden.Build(repo, commits)
+	g.Southern = *southern
 	color := env.StdoutTTY && env.Getenv("NO_COLOR") == "" && !*noColor
 	render := func(gr *frame.Grid) string {
 		if color {

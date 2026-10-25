@@ -97,6 +97,18 @@ func TestStillGolden(t *testing.T) {
 	golden.Assert(t, "still_three_authors", strings.ReplaceAll(out, filepath.Base(r.Dir), "REPO"))
 }
 
+// TestSouthernFlag checks that --southern changes the season in the still frame title.
+func TestSouthernFlag(t *testing.T) {
+	r := threeAuthors(t)
+	out, _, code := run(fakeEnv(), "-C", r.Dir, "--still", "--southern")
+	if code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	if !strings.Contains(out, "2024-12 summer") {
+		t.Fatalf("expected 2024-12 summer in output:\n%s", out)
+	}
+}
+
 // TestNonTTYFallsBackToStill checks that a run with no flags and no terminal prints the 80x24 still frame, with no escape codes.
 func TestNonTTYFallsBackToStill(t *testing.T) {
 	r := threeAuthors(t)
