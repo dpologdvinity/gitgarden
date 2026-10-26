@@ -122,3 +122,29 @@ func TestPlayStepFrames(t *testing.T) {
 		t.Fatalf("expected [0 1 0 1], got %v", rendered)
 	}
 }
+
+// TestPlayArrowKeysAndBoundaries checks Left/Right arrow escape sequences and boundary clamping.
+func TestPlayArrowKeysAndBoundaries(t *testing.T) {
+	keys := make(chan byte, 10)
+	var rendered []int
+	quit := Play(&bytes.Buffer{}, keys, 3, func(i int) string {
+		rendered = append(rendered, i)
+		return fmt.Sprintf("frame %d", i)
+	}, 10*time.Millisecond, func(time.Duration) {
+		if len(rendered) == 1 {
+			keys <- 27
+			keys <- '['
+			keys <- 'D' // Left arrow clamps at 0 (no redraw since i stays 0)
+			keys <- 27
+			keys <- '['
+			keys <- 'C' // Right arrow steps to 1
+			keys <- 'q'
+		}
+	})
+	if !quit {
+		t.Fatal("expected quit")
+	}
+	if !slices.Equal(rendered, []int{0, 1}) {
+		t.Fatalf("rendered: %v, want [0 1]", rendered)
+	}
+}

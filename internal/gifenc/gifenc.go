@@ -2,12 +2,14 @@
 package gifenc
 
 import (
+	"bytes"
 	"image"
 	"image/color"
 	"image/draw"
 	"image/gif"
 	"io"
 	"math"
+	"slices"
 
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/basicfont"
@@ -80,12 +82,13 @@ func Image(g *frame.Grid) *image.Paletted {
 	return img
 }
 
-// StreamWriter streams frames into an animated GIF.
+// StreamWriter streams frames into an animated GIF without buffering all images in memory.
 type StreamWriter struct {
-	w      io.Writer
-	delay  int
-	frames []*image.Paletted
-	delays []int
+	w           io.Writer
+	delay       int
+	headerDone  bool
+	pendingGCE  []byte
+	pendingData []byte
 }
 
 // NewStream creates a StreamWriter that encodes frames with delay (in 1/100 s).
@@ -95,22 +98,73 @@ func NewStream(w io.Writer, delay int) (*StreamWriter, error) {
 
 // Append adds one frame grid to the stream.
 func (s *StreamWriter) Append(g *frame.Grid) error {
-	s.frames = append(s.frames, Image(g))
-	s.delays = append(s.delays, s.delay)
+	img := Image(g)
+	var buf bytes.Buffer
+	if err := gif.Encode(&buf, img, nil); err != nil {
+		return err
+	}
+	raw := buf.Bytes()
+	hdrLen := 13
+	if raw[10]&0x80 != 0 {
+		hdrLen += 3 * (1 << ((raw[10] & 0x07) + 1))
+	}
+	if len(raw) <= hdrLen {
+		return io.ErrUnexpectedEOF
+	}
+
+	if !s.headerDone {
+		// Write GIF header + screen descriptor + global palette
+		if _, err := s.w.Write(raw[:hdrLen]); err != nil {
+			return err
+		}
+		// Write Netscape 2.0 application extension for infinite loop (19 bytes)
+		loopBlock := []byte{
+			0x21, 0xFF, 0x0B,
+			'N', 'E', 'T', 'S', 'C', 'A', 'P', 'E', '2', '.', '0',
+			0x03, 0x01, 0x00, 0x00, 0x00,
+		}
+		if _, err := s.w.Write(loopBlock); err != nil {
+			return err
+		}
+		s.headerDone = true
+	}
+
+	// Flush previously pending frame with standard delay
+	if len(s.pendingData) > 0 {
+		if _, err := s.w.Write(s.pendingGCE); err != nil {
+			return err
+		}
+		if _, err := s.w.Write(s.pendingData); err != nil {
+			return err
+		}
+	}
+
+	s.pendingGCE = []byte{
+		0x21, 0xF9, 0x04,
+		0x00, // disposal, flags
+		byte(s.delay & 0xFF), byte((s.delay >> 8) & 0xFF),
+		0x00, // transparent index
+		0x00, // block terminator
+	}
+	s.pendingData = slices.Clone(raw[hdrLen : len(raw)-1])
 	return nil
 }
 
-// Close flushes the animated GIF to the underlying writer, holding the last frame for 3 s.
+// Close flushes the final frame (with 3-second hold) and writes the GIF trailer.
 func (s *StreamWriter) Close() error {
-	if len(s.delays) > 0 {
-		s.delays[len(s.delays)-1] = 300
+	if len(s.pendingData) > 0 {
+		s.pendingGCE[4] = byte(300 & 0xFF)
+		s.pendingGCE[5] = byte((300 >> 8) & 0xFF)
+		if _, err := s.w.Write(s.pendingGCE); err != nil {
+			return err
+		}
+		if _, err := s.w.Write(s.pendingData); err != nil {
+			return err
+		}
+		s.pendingData = nil
 	}
-	a := gif.GIF{
-		Image:     s.frames,
-		Delay:     s.delays,
-		LoopCount: 0,
-	}
-	return gif.EncodeAll(s.w, &a)
+	_, err := s.w.Write([]byte{0x3B})
+	return err
 }
 
 // Write encodes frames as a looping GIF; the last frame holds for 3 s.

@@ -28,23 +28,23 @@ func nextKey(keys <-chan byte) keyAction {
 		switch b {
 		case 'q', 'Q', 3:
 			return actQuit
-		case 27: // Esc or escape sequence
+		case 27: // Esc or escape sequence like \x1b[D
 			select {
 			case b2 := <-keys:
 				if b2 == '[' {
 					select {
 					case b3 := <-keys:
-						if b3 == 'D' {
+						switch b3 {
+						case 'D':
 							return actStepBack
-						}
-						if b3 == 'C' {
+						case 'C':
 							return actStepForward
 						}
-					default:
+					case <-time.After(25 * time.Millisecond):
 					}
 				}
 				return actNone
-			default:
+			case <-time.After(25 * time.Millisecond):
 				return actQuit
 			}
 		case ' ':
@@ -76,73 +76,80 @@ func Play(w io.Writer, keys <-chan byte, n int, frameAt func(i int) string,
 
 	paused := false
 	i := 0
+	draw(i)
+
+	timerLeft := interval
 	for i < n {
-		draw(i)
-
-		for {
-			switch nextKey(keys) {
-			case actQuit:
-				return true
-			case actPauseToggle:
-				paused = !paused
-			case actStepBack:
-				if i > 0 {
-					i--
-					draw(i)
-				}
-				continue
-			case actStepForward:
-				if i < n-1 {
-					i++
-					draw(i)
-				}
-				continue
-			case actSpeedUp:
-				interval = max(5*time.Millisecond, interval*3/4)
-			case actSlowDown:
-				interval = min(2*time.Second, interval*4/3)
+		act := nextKey(keys)
+		switch act {
+		case actQuit:
+			return true
+		case actPauseToggle:
+			paused = !paused
+		case actStepBack:
+			if i > 0 {
+				i--
+				draw(i)
 			}
-
-			if paused {
-				sleep(pollEvery)
-				continue
+			timerLeft = interval
+			continue
+		case actStepForward:
+			if i < n-1 {
+				i++
+				draw(i)
 			}
-
-			for left := interval; left > 0; {
-				d := min(left, pollEvery)
-				sleep(d)
-				left -= d
-				switch nextKey(keys) {
-				case actQuit:
-					return true
-				case actPauseToggle:
-					paused = true
-				case actStepBack:
-					if i > 0 {
-						i--
-						draw(i)
-					}
-				case actStepForward:
-					if i < n-1 {
-						i++
-						draw(i)
-					}
-				case actSpeedUp:
-					interval = max(5*time.Millisecond, interval*3/4)
-				case actSlowDown:
-					interval = min(2*time.Second, interval*4/3)
-				}
-				if paused {
-					break
-				}
-			}
-
-			if !paused {
-				break
-			}
+			timerLeft = interval
+			continue
+		case actSpeedUp:
+			interval = max(5*time.Millisecond, interval*3/4)
+			timerLeft = min(timerLeft, interval)
+		case actSlowDown:
+			interval = min(2*time.Second, interval*4/3)
 		}
 
-		i++
+		if paused {
+			sleep(pollEvery)
+			continue
+		}
+
+		d := min(timerLeft, pollEvery)
+		sleep(d)
+		timerLeft -= d
+
+		switch nextKey(keys) {
+		case actQuit:
+			return true
+		case actPauseToggle:
+			paused = !paused
+		case actStepBack:
+			if i > 0 {
+				i--
+				draw(i)
+			}
+			timerLeft = interval
+			continue
+		case actStepForward:
+			if i < n-1 {
+				i++
+				draw(i)
+			}
+			timerLeft = interval
+			continue
+		case actSpeedUp:
+			interval = max(5*time.Millisecond, interval*3/4)
+			timerLeft = min(timerLeft, interval)
+		case actSlowDown:
+			interval = min(2*time.Second, interval*4/3)
+		}
+
+		if !paused && timerLeft <= 0 {
+			if i == n-1 {
+				break
+			}
+			i++
+			draw(i)
+			timerLeft = interval
+		}
 	}
 
 	for left := time.Second; left > 0; {

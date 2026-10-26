@@ -66,21 +66,28 @@ func Build(repo string, commits []gitlog.Commit) *Garden {
 	g := &Garden{Repo: repo, Commits: commits, rank: map[string]int{}}
 	byKey := map[string]*Author{}
 	for i, c := range commits {
-		add := func(name, email string, added, deleted int) {
+		seen := map[string]bool{}
+		add := func(name, email string, added, deleted int, isPrimary bool) {
 			k := authorKey(name, email)
+			if seen[k] {
+				return
+			}
+			seen[k] = true
 			a := byKey[k]
 			if a == nil {
 				a = &Author{Key: k, First: i}
 				byKey[k] = a
 			}
-			a.Name = name
+			if isPrimary || (name != "" && a.Name == "") {
+				a.Name = name
+			}
 			a.Commits++
 			a.Added += added
 			a.Deleted += deleted
 		}
-		add(c.Name, c.Email, c.Added, c.Deleted)
+		add(c.Name, c.Email, c.Added, c.Deleted, true)
 		for _, co := range c.CoAuthors {
-			add(co.Name, co.Email, c.Added, c.Deleted)
+			add(co.Name, co.Email, c.Added, c.Deleted, false)
 		}
 	}
 	for _, a := range byKey {
@@ -106,7 +113,12 @@ func (g *Garden) Snapshots(limit int) []Snapshot {
 	var out []Snapshot
 	maxRank := -1
 	for i, c := range g.Commits {
+		seen := map[string]bool{}
 		apply := func(k string) {
+			if seen[k] {
+				return
+			}
+			seen[k] = true
 			r := g.rank[k]
 			s := &cur[r]
 			s.Commits++

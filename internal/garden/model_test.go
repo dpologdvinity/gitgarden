@@ -63,6 +63,26 @@ func TestBuildCreditsCoAuthors(t *testing.T) {
 	}
 }
 
+// TestBuildDeduplicatesCoAuthorsOnSingleCommit checks that duplicate trailers or self-coauthors don't double count.
+func TestBuildDeduplicatesCoAuthorsOnSingleCommit(t *testing.T) {
+	c := cm("Ada", "ada@example.com", 10, 2)
+	c.CoAuthors = []gitlog.CoAuthor{
+		{Name: "Ada", Email: "ada@example.com"},
+		{Name: "Bob", Email: "bob@example.com"},
+		{Name: "Bob Alias", Email: "bob@example.com"},
+	}
+	g := Build("demo", []gitlog.Commit{c})
+	if len(g.Authors) != 2 {
+		t.Fatalf("want 2 authors, got %d: %+v", len(g.Authors), g.Authors)
+	}
+	if g.Authors[0].Commits != 1 || g.Authors[1].Commits != 1 {
+		t.Fatalf("commits should not double count: %+v", g.Authors)
+	}
+	if g.Authors[0].Added != 10 || g.Authors[1].Added != 10 {
+		t.Fatalf("added lines should not double count: %+v", g.Authors)
+	}
+}
+
 // TestSnapshots checks which commits are sampled and that stats are cumulative and copied per snapshot.
 func TestSnapshots(t *testing.T) {
 	var cs []gitlog.Commit
