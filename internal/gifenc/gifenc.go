@@ -80,16 +80,49 @@ func Image(g *frame.Grid) *image.Paletted {
 	return img
 }
 
+// StreamWriter streams frames into an animated GIF.
+type StreamWriter struct {
+	w      io.Writer
+	delay  int
+	frames []*image.Paletted
+	delays []int
+}
+
+// NewStream creates a StreamWriter that encodes frames with delay (in 1/100 s).
+func NewStream(w io.Writer, delay int) (*StreamWriter, error) {
+	return &StreamWriter{w: w, delay: delay}, nil
+}
+
+// Append adds one frame grid to the stream.
+func (s *StreamWriter) Append(g *frame.Grid) error {
+	s.frames = append(s.frames, Image(g))
+	s.delays = append(s.delays, s.delay)
+	return nil
+}
+
+// Close flushes the animated GIF to the underlying writer, holding the last frame for 3 s.
+func (s *StreamWriter) Close() error {
+	if len(s.delays) > 0 {
+		s.delays[len(s.delays)-1] = 300
+	}
+	a := gif.GIF{
+		Image:     s.frames,
+		Delay:     s.delays,
+		LoopCount: 0,
+	}
+	return gif.EncodeAll(s.w, &a)
+}
+
 // Write encodes frames as a looping GIF; the last frame holds for 3 s.
 func Write(w io.Writer, frames []*frame.Grid, delay int) error {
-	a := gif.GIF{LoopCount: 0}
-	for i, g := range frames {
-		a.Image = append(a.Image, Image(g))
-		d := delay
-		if i == len(frames)-1 {
-			d = 300
-		}
-		a.Delay = append(a.Delay, d)
+	sw, err := NewStream(w, delay)
+	if err != nil {
+		return err
 	}
-	return gif.EncodeAll(w, &a)
+	for _, g := range frames {
+		if err := sw.Append(g); err != nil {
+			return err
+		}
+	}
+	return sw.Close()
 }

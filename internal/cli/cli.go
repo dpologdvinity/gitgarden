@@ -148,14 +148,13 @@ func Run(args []string, stdout, stderr io.Writer, env Env) int {
 	switch {
 	case *gifPath != "":
 		ss := g.Snapshots(300)
-		grids := make([]*frame.Grid, len(ss))
-		for i, sn := range ss {
-			grids[i] = garden.Draw(g, sn, w, h)
+		frameAt := func(i int) *frame.Grid {
+			return garden.Draw(g, ss[i], w, h)
 		}
-		if err := writeGIF(*gifPath, grids, gifenc.Delay(*speed)); err != nil {
+		if err := writeGIF(*gifPath, len(ss), frameAt, gifenc.Delay(*speed)); err != nil {
 			return fail(fmt.Sprintf("cannot write %s: %v", *gifPath, err))
 		}
-		_, _ = fmt.Fprintf(stdout, "wrote %s (%d frames, %dx%d)\n", *gifPath, len(grids), w*gifenc.CellW, h*gifenc.CellH)
+		_, _ = fmt.Fprintf(stdout, "wrote %s (%d frames, %dx%d)\n", *gifPath, len(ss), w*gifenc.CellW, h*gifenc.CellH)
 	case *still || !env.StdoutTTY:
 		_, _ = io.WriteString(stdout, stillFrame())
 	default:
@@ -193,16 +192,29 @@ func Run(args []string, stdout, stderr io.Writer, env Env) int {
 	return 0
 }
 
-// writeGIF encodes grids as an animated GIF at path. If encoding or closing fails it removes the
-// partly written file so a truncated GIF is never left behind.
-func writeGIF(path string, grids []*frame.Grid, delay int) error {
+// writeGIF encodes frames as an animated GIF at path using StreamWriter.
+// If encoding or closing fails it removes the partly written file so a truncated GIF is never left behind.
+func writeGIF(path string, count int, frameAt func(i int) *frame.Grid, delay int) error {
 	f, err := os.Create(path)
 	if err != nil {
 		return err
 	}
-	if err := gifenc.Write(f, grids, delay); err != nil {
+	sw, err := gifenc.NewStream(f, delay)
+	if err != nil {
 		_ = f.Close()
-		_ = os.Remove(path) // no truncated GIF left behind
+		_ = os.Remove(path)
+		return err
+	}
+	for i := 0; i < count; i++ {
+		if err := sw.Append(frameAt(i)); err != nil {
+			_ = f.Close()
+			_ = os.Remove(path) // no truncated GIF left behind
+			return err
+		}
+	}
+	if err := sw.Close(); err != nil {
+		_ = f.Close()
+		_ = os.Remove(path)
 		return err
 	}
 	if err := f.Close(); err != nil {

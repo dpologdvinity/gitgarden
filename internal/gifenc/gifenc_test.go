@@ -73,3 +73,28 @@ func TestWriteRoundTrip(t *testing.T) {
 		t.Fatalf("frames %d delays %v loop %d w %d", len(a.Image), a.Delay, a.LoopCount, a.Config.Width)
 	}
 }
+
+// TestStreamWriter checks that NewStream, Append and Close encode frames identical to Write.
+func TestStreamWriter(t *testing.T) {
+	gs := []*frame.Grid{frame.New(2, 1), frame.New(2, 1), frame.New(2, 1)}
+	var buf bytes.Buffer
+	sw, err := NewStream(&buf, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, g := range gs {
+		if err := sw.Append(g); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := sw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	a, err := gif.DecodeAll(&buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(a.Image) != 3 || !slices.Equal(a.Delay, []int{5, 5, 300}) || a.LoopCount != 0 || a.Config.Width != 14 {
+		t.Fatalf("frames %d delays %v loop %d w %d", len(a.Image), a.Delay, a.LoopCount, a.Config.Width)
+	}
+}
