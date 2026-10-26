@@ -80,15 +80,17 @@ Plays a repository's git history as an ASCII garden.
 flags:
   -C dir          repository directory (default ".")
   --since date    only plant commits after date (any git date)
+  --max-commits n only plant the latest n commits
   --speed x       playback speed multiplier (default 1)
   --still         print only the final frame
   --gif file      write an animated GIF instead of playing
   --width n       frame width in cells, 40-160 (default: terminal)
   --height n      frame height in cells, 12-60 (default: terminal)
   --no-color      disable color
+  --southern      use southern-hemisphere seasons
   --version       print version
 
-keys while playing: q quit
+keys while playing: space pause/resume, h/l seek, +/- speed, q quit
 ```
 Set `flag.FlagSet.Usage` to print this text. Do not use `PrintDefaults`.
 
@@ -411,9 +413,14 @@ func Run(args []string, stdout, stderr io.Writer, env Env) int
 - GitHub `dpologdvinity/gitgarden`: free (404). About 43 unrelated repos use the name.
 - Homebrew formula and cask `gitgarden`: free. npm `gitgarden`: free.
 
-## 15. Later (not v0.1)
-- Streaming GIF encoder (removes the 300-frame and 120x40 caps).
-- `--southern` seasons, themes, per-directory "garden beds".
-- Pause, seek, and speed keys during playback. Live resize.
-- Plants for co-authors (`Co-authored-by` trailers).
-- `--max-commits` for huge histories.
+## 15. Deferred features (implemented in v0.2)
+- [x] Streaming GIF encoder (`gifenc.StreamWriter`).
+- [x] `--southern` hemisphere seasons.
+- [x] Pause, seek, and speed keys during playback.
+- [x] Plants for co-authors (`Co-authored-by` git trailers).
+- [x] `--max-commits` flag to bound history size.
+
+### Future explorations
+- Themes and customizable plant glyphs.
+- Per-directory "garden beds" breakdown.
+- Live terminal window resize (`SIGWINCH`).

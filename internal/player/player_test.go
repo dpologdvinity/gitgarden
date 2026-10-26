@@ -84,7 +84,7 @@ func TestPlayPauseAndResume(t *testing.T) {
 	quit := Play(&bytes.Buffer{}, keys, 3, func(i int) string {
 		rendered = append(rendered, i)
 		return fmt.Sprintf("frame %d", i)
-	}, 10*time.Millisecond, func(d time.Duration) {
+	}, 10*time.Millisecond, func(time.Duration) {
 		if len(rendered) == 1 && !unpauseSent {
 			keys <- ' ' // pause
 			unpauseSent = true
@@ -106,7 +106,7 @@ func TestPlayStepFrames(t *testing.T) {
 	quit := Play(&bytes.Buffer{}, keys, 5, func(i int) string {
 		rendered = append(rendered, i)
 		return fmt.Sprintf("frame %d", i)
-	}, 10*time.Millisecond, func(d time.Duration) {
+	}, 10*time.Millisecond, func(time.Duration) {
 		if len(rendered) == 2 {
 			keys <- ' ' // pause after frame 1
 			keys <- 'h' // step back to 0
