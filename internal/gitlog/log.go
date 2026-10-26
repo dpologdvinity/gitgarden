@@ -23,17 +23,24 @@ var (
 	ErrGitMissing = errors.New("git not found in PATH")
 )
 
+// CoAuthor is a co-author of a commit, extracted from git trailers.
+type CoAuthor struct {
+	Name  string
+	Email string
+}
+
 // Commit is one non-merge commit with its line counts. Added and Deleted are capped at HugeCap;
 // Huge records whether either raw total was above the cap.
 type Commit struct {
-	Hash    string
-	Name    string    // author name, after .mailmap
-	Email   string    // author email, after .mailmap, case unchanged
-	Time    time.Time // author time in UTC
-	Subject string
-	Added   int  // lines added, capped at HugeCap
-	Deleted int  // lines deleted, capped at HugeCap
-	Huge    bool // true if the raw added or deleted total was above HugeCap
+	Hash      string
+	Name      string    // author name, after .mailmap
+	Email     string    // author email, after .mailmap, case unchanged
+	Time      time.Time // author time in UTC
+	Subject   string
+	Added     int        // lines added, capped at HugeCap
+	Deleted   int        // lines deleted, capped at HugeCap
+	Huge      bool       // true if the raw added or deleted total was above HugeCap
+	CoAuthors []CoAuthor // co-authors from Co-authored-by trailers
 }
 
 // GitError is a git command that failed. It carries the arguments and git's stderr.
@@ -84,7 +91,7 @@ func Load(dir, since string, maxCommits ...int) (repo string, commits []Commit, 
 	// 3. One git log call, oldest first, merges skipped. -z and the 0x1e/0x1f separators keep
 	// parsing safe for names and subjects that contain spaces, tabs or newlines.
 	args := []string{"log", "--reverse", "--no-merges", "--no-renames", "--numstat", "-z",
-		"--no-color", "--format=%x1e%H%x1f%aN%x1f%aE%x1f%at%x1f%s"}
+		"--no-color", "--format=%x1e%H%x1f%aN%x1f%aE%x1f%at%x1f%s%x1d%(trailers:key=Co-authored-by,valueonly=true,separator=%x1d)"}
 	if since != "" {
 		args = append(args, "--since="+since)
 	}
@@ -114,7 +121,8 @@ func Load(dir, since string, maxCommits ...int) (repo string, commits []Commit, 
 func parseChunk(chunk string) (Commit, error) {
 	header, rest, _ := strings.Cut(chunk, "\x00")
 	rest = strings.TrimPrefix(rest, "\n")
-	f := strings.SplitN(header, "\x1f", 5)
+	mainHeader, trailerStr, _ := strings.Cut(header, "\x1d")
+	f := strings.SplitN(mainHeader, "\x1f", 5)
 	if len(f) != 5 {
 		return Commit{}, &GitError{Args: []string{"log"}, Stderr: "unparsable output"}
 	}
@@ -123,6 +131,15 @@ func parseChunk(chunk string) (Commit, error) {
 		return Commit{}, &GitError{Args: []string{"log"}, Stderr: "bad timestamp " + f[3]}
 	}
 	c := Commit{Hash: f[0], Name: f[1], Email: f[2], Time: time.Unix(at, 0).UTC(), Subject: f[4]}
+	if trailerStr != "" {
+		for _, tr := range strings.Split(trailerStr, "\x1d") {
+			tr = strings.TrimSpace(tr)
+			if tr == "" {
+				continue
+			}
+			c.CoAuthors = append(c.CoAuthors, parseCoAuthor(tr))
+		}
+	}
 	for _, field := range strings.Split(rest, "\x00") {
 		if field == "" {
 			continue
@@ -142,6 +159,18 @@ func parseChunk(chunk string) (Commit, error) {
 	c.Added = min(c.Added, HugeCap)
 	c.Deleted = min(c.Deleted, HugeCap)
 	return c, nil
+}
+
+// parseCoAuthor extracts a name and email from a trailer value like "Name <email>".
+func parseCoAuthor(s string) CoAuthor {
+	s = strings.TrimSpace(s)
+	if before, after, ok := strings.Cut(s, "<"); ok && strings.HasSuffix(after, ">") {
+		return CoAuthor{
+			Name:  strings.TrimSpace(before),
+			Email: strings.TrimSuffix(after, ">"),
+		}
+	}
+	return CoAuthor{Name: s}
 }
 
 // classifyRevParse maps git's "not a repository" failure to ErrNotRepo and

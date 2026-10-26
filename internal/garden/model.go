@@ -47,12 +47,17 @@ type Snapshot struct {
 	MaxRank int     // highest rank with at least one commit so far
 }
 
+// authorKey returns the identity key for a name and email.
+func authorKey(name, email string) string {
+	if email == "" {
+		return "name:" + strings.ToLower(name)
+	}
+	return strings.ToLower(email)
+}
+
 // Key is the identity of a commit's author.
 func Key(c gitlog.Commit) string {
-	if c.Email == "" {
-		return "name:" + strings.ToLower(c.Name)
-	}
-	return strings.ToLower(c.Email)
+	return authorKey(c.Name, c.Email)
 }
 
 // Build groups commits by author identity, totals each author and ranks them
@@ -61,16 +66,22 @@ func Build(repo string, commits []gitlog.Commit) *Garden {
 	g := &Garden{Repo: repo, Commits: commits, rank: map[string]int{}}
 	byKey := map[string]*Author{}
 	for i, c := range commits {
-		k := Key(c)
-		a := byKey[k]
-		if a == nil {
-			a = &Author{Key: k, First: i}
-			byKey[k] = a
+		add := func(name, email string, added, deleted int) {
+			k := authorKey(name, email)
+			a := byKey[k]
+			if a == nil {
+				a = &Author{Key: k, First: i}
+				byKey[k] = a
+			}
+			a.Name = name
+			a.Commits++
+			a.Added += added
+			a.Deleted += deleted
 		}
-		a.Name = c.Name
-		a.Commits++
-		a.Added += c.Added
-		a.Deleted += c.Deleted
+		add(c.Name, c.Email, c.Added, c.Deleted)
+		for _, co := range c.CoAuthors {
+			add(co.Name, co.Email, c.Added, c.Deleted)
+		}
 	}
 	for _, a := range byKey {
 		g.Authors = append(g.Authors, *a)
@@ -95,12 +106,18 @@ func (g *Garden) Snapshots(limit int) []Snapshot {
 	var out []Snapshot
 	maxRank := -1
 	for i, c := range g.Commits {
-		r := g.RankOf(c)
-		s := &cur[r]
-		s.Commits++
-		s.Added += c.Added
-		s.Deleted += c.Deleted
-		maxRank = max(maxRank, r)
+		apply := func(k string) {
+			r := g.rank[k]
+			s := &cur[r]
+			s.Commits++
+			s.Added += c.Added
+			s.Deleted += c.Deleted
+			maxRank = max(maxRank, r)
+		}
+		apply(Key(c))
+		for _, co := range c.CoAuthors {
+			apply(authorKey(co.Name, co.Email))
+		}
 		if len(out) < len(want) && want[len(out)] == i {
 			out = append(out, Snapshot{Index: i, Stats: slices.Clone(cur[:min(len(cur), MaxVisibleRanks)]), MaxRank: maxRank})
 		}

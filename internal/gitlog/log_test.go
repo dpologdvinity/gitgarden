@@ -96,6 +96,26 @@ func TestLoadMaxCommits(t *testing.T) {
 	}
 }
 
+// TestLoadCoAuthors checks that Co-authored-by trailers are parsed into CoAuthors.
+func TestLoadCoAuthors(t *testing.T) {
+	r := testrepo.New(t)
+	r.Write("x.txt", "line\n")
+	r.Commit("Ada", "ada@example.com", "feature\n\nCo-authored-by: Bob Builder <bob@example.com>\nCo-authored-by: Carol <carol@example.com>")
+	_, cs, err := Load(r.Dir, "")
+	if err != nil || len(cs) != 1 {
+		t.Fatalf("err %v, %d commits", err, len(cs))
+	}
+	if len(cs[0].CoAuthors) != 2 {
+		t.Fatalf("want 2 co-authors, got %d: %+v", len(cs[0].CoAuthors), cs[0].CoAuthors)
+	}
+	if cs[0].CoAuthors[0].Name != "Bob Builder" || cs[0].CoAuthors[0].Email != "bob@example.com" {
+		t.Errorf("co-author 0 mismatch: %+v", cs[0].CoAuthors[0])
+	}
+	if cs[0].CoAuthors[1].Name != "Carol" || cs[0].CoAuthors[1].Email != "carol@example.com" {
+		t.Errorf("co-author 1 mismatch: %+v", cs[0].CoAuthors[1])
+	}
+}
+
 // TestLoadSinceExcludesAll checks that a --since date after every commit gives ErrNoCommits.
 func TestLoadSinceExcludesAll(t *testing.T) {
 	_, _, err := Load(fixture(t).Dir, "2030-01-01")

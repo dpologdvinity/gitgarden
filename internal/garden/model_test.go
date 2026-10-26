@@ -45,6 +45,24 @@ func TestBuildMergesEmailCase(t *testing.T) {
 	}
 }
 
+// TestBuildCreditsCoAuthors checks that co-authors get author entries and snapshots credit them.
+func TestBuildCreditsCoAuthors(t *testing.T) {
+	c := cm("Ada", "ada@example.com", 10, 2)
+	c.CoAuthors = []gitlog.CoAuthor{{Name: "Bob", Email: "bob@example.com"}}
+	g := Build("demo", []gitlog.Commit{c})
+	if len(g.Authors) != 2 {
+		t.Fatalf("want 2 authors, got %d: %+v", len(g.Authors), g.Authors)
+	}
+	snaps := g.Snapshots(1)
+	if len(snaps) != 1 {
+		t.Fatalf("want 1 snapshot, got %d", len(snaps))
+	}
+	s := snaps[0]
+	if len(s.Stats) != 2 || s.Stats[0].Commits != 1 || s.Stats[1].Commits != 1 {
+		t.Fatalf("stats mismatch: %+v", s.Stats)
+	}
+}
+
 // TestSnapshots checks which commits are sampled and that stats are cumulative and copied per snapshot.
 func TestSnapshots(t *testing.T) {
 	var cs []gitlog.Commit
