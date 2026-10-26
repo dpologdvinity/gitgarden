@@ -46,15 +46,17 @@ Plays a repository's git history as an ASCII garden.
 flags:
   -C dir          repository directory (default ".")
   --since date    only plant commits after date (any git date)
+  --max-commits n only plant the latest n commits
   --speed x       playback speed multiplier (default 1)
   --still         print only the final frame
   --gif file      write an animated GIF instead of playing
   --width n       frame width in cells, 40-160 (default: terminal)
   --height n      frame height in cells, 12-60 (default: terminal)
   --no-color      disable color
+  --southern      use southern-hemisphere seasons
   --version       print version
 
-keys while playing: q quit
+keys while playing: space pause/resume, h/l seek, +/- speed, q quit
 ```
 
 `gitgarden` with no flags plays the repo in the current directory. When stdout is not a terminal it prints the still frame instead. Color is off when `NO_COLOR` is set or `--no-color` is given.

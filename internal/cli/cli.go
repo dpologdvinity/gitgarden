@@ -35,7 +35,7 @@ flags:
   --southern      use southern-hemisphere seasons
   --version       print version
 
-keys while playing: q quit
+keys while playing: space pause/resume, h/l seek, +/- speed, q quit
 `
 
 // Env holds everything Run needs from the real OS, so tests can fake it.

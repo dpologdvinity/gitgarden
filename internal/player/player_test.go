@@ -2,6 +2,7 @@ package player
 
 import (
 	"bytes"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -72,5 +73,52 @@ func TestPlayQuitDuringFinalHold(t *testing.T) {
 		})
 	if !quit || len(slept) > 3 {
 		t.Fatalf("quit %v slept %v", quit, slept)
+	}
+}
+
+// TestPlayPauseAndResume checks that Space pauses playback and subsequent Space resumes.
+func TestPlayPauseAndResume(t *testing.T) {
+	keys := make(chan byte, 5)
+	var rendered []int
+	var unpauseSent bool
+	quit := Play(&bytes.Buffer{}, keys, 3, func(i int) string {
+		rendered = append(rendered, i)
+		return fmt.Sprintf("frame %d", i)
+	}, 10*time.Millisecond, func(d time.Duration) {
+		if len(rendered) == 1 && !unpauseSent {
+			keys <- ' ' // pause
+			unpauseSent = true
+			go func() {
+				time.Sleep(10 * time.Millisecond)
+				keys <- ' ' // resume
+			}()
+		}
+	})
+	if quit || len(rendered) < 3 {
+		t.Fatalf("quit %v rendered %v", quit, rendered)
+	}
+}
+
+// TestPlayStepFrames checks that 'h' (step back) and 'l' (step forward) work while paused.
+func TestPlayStepFrames(t *testing.T) {
+	keys := make(chan byte, 10)
+	var rendered []int
+	quit := Play(&bytes.Buffer{}, keys, 5, func(i int) string {
+		rendered = append(rendered, i)
+		return fmt.Sprintf("frame %d", i)
+	}, 10*time.Millisecond, func(d time.Duration) {
+		if len(rendered) == 2 {
+			keys <- ' ' // pause after frame 1
+			keys <- 'h' // step back to 0
+			keys <- 'l' // step forward to 1
+			keys <- 'q' // quit
+		}
+	})
+	if !quit {
+		t.Fatal("expected quit")
+	}
+	// Sequence should have visited 0, 1, then step back to 0, then step forward to 1
+	if !slices.Equal(rendered, []int{0, 1, 0, 1}) {
+		t.Fatalf("expected [0 1 0 1], got %v", rendered)
 	}
 }
