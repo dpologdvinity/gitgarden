@@ -12,6 +12,8 @@
 
 ## Install
 
+Requires `git` 2.22 or newer on `PATH` (for the `%(trailers)` options used to read co-authors).
+
 ### Homebrew
 
 ```
@@ -59,6 +61,8 @@ flags:
 keys while playing: space pause/resume, h/l seek, +/- speed, q quit
 ```
 
+Keys while playing: space pauses and resumes; `h`, `l`, `<`, `>`, Left and Right seek one frame; `+` or `]` speeds up and `-` or `[` slows down; `q`, `Q`, Esc or Ctrl-C quits.
+
 `gitgarden` with no flags plays the repo in the current directory. When stdout is not a terminal it prints the still frame instead. Color is off when `NO_COLOR` is set or `--no-color` is given.
 
 Example of `gitgarden --still --width 60 --height 16`:
@@ -86,7 +90,8 @@ gitgarden - REPO - 2024-12 winter               12/12 commits
 
 - Merge commits are skipped, since their changes are already counted in the commits they merge.
 - Huge commits (over 1000 added or deleted lines) count once, with lines capped at 1000, and show `[huge]` in the status line.
-- Seasons follow the month of the current commit (northern hemisphere): Dec-Feb winter, Mar-May spring, Jun-Aug summer, Sep-Nov autumn.
+- Co-authors named in `Co-authored-by:` trailers get a plant too and are credited with the commit, after `.mailmap`.
+- Seasons follow the month of the current commit (northern hemisphere): Dec-Feb winter, Mar-May spring, Jun-Aug summer, Sep-Nov autumn. `--southern` shifts them by half a year.
 - Each plant is a trunk with a teardrop crown of leaves, drawn against a sky-blue background.
 - Beyond what fits on screen, the remaining contributors become wildflowers.
 - Exit codes: 0 success, 1 no commits, 2 usage or git error.
