@@ -3,6 +3,7 @@ package gifenc
 
 import (
 	"bytes"
+	"errors"
 	"image"
 	"image/color"
 	"image/draw"
@@ -150,8 +151,12 @@ func (s *StreamWriter) Append(g *frame.Grid) error {
 	return nil
 }
 
-// Close flushes the final frame (with 3-second hold) and writes the GIF trailer.
+// Close flushes the final frame (with 3-second hold) and writes the GIF trailer. A stream without
+// frames is an error, since it would not be a valid GIF.
 func (s *StreamWriter) Close() error {
+	if !s.headerDone {
+		return errors.New("gifenc: no frames to encode")
+	}
 	if len(s.pendingData) > 0 {
 		s.pendingGCE[4] = byte(300 & 0xFF)
 		s.pendingGCE[5] = byte((300 >> 8) & 0xFF)

@@ -98,3 +98,10 @@ func TestStreamWriter(t *testing.T) {
 		t.Fatalf("frames %d delays %v loop %d w %d", len(a.Image), a.Delay, a.LoopCount, a.Config.Width)
 	}
 }
+
+// TestWriteNoFrames checks that encoding zero frames is an error rather than an invalid GIF.
+func TestWriteNoFrames(t *testing.T) {
+	if err := Write(&bytes.Buffer{}, nil, 5); err == nil {
+		t.Fatal("want error for zero frames")
+	}
+}
