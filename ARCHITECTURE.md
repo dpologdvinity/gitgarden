@@ -32,9 +32,9 @@ All code lives under `internal/` except `main.go`.
 | `internal/cli` | Flag parsing, validation, mode selection, error messages and exit codes. | all below except test helpers |
 | `internal/gitlog` | Runs read-only `git` commands and parses the log into `Commit` values. | standard library |
 | `internal/garden` | The model (`Build`, `Snapshots`), the layout (slots, plant geometry, seasons) and the drawing (`Draw`). | `frame`, `gitlog`, `gifenc` |
-| `internal/frame` | `Grid` of colored cells, the 16-color palette, plain-text and ANSI rendering. | standard library |
+| `internal/frame` | `Grid` of colored cells, the 17-color palette, plain-text and ANSI rendering. | standard library |
 | `internal/gifenc` | Frame sampling, rendering a grid to a paletted image, GIF encoding. | `frame`, `x/image` |
-| `internal/player` | Plays frames in the terminal's alternate screen and watches for quit keys. | standard library |
+| `internal/player` | Plays frames in the terminal's alternate screen and handles the pause, seek, speed and quit keys. | standard library |
 | `internal/testrepo` | Builds fixture git repositories with fixed dates (tests only). | standard library |
 | `internal/golden` | Compares test output with files in `testdata/golden` (tests only). | standard library |
 
@@ -47,22 +47,32 @@ Only `main.go` imports `golang.org/x/term`.
 
 `Load` runs three `git -C <dir>` commands: `rev-parse --show-toplevel` (the
 repository name), `rev-parse --verify HEAD` (are there commits?) and one
-`git log --reverse --no-merges --no-renames --numstat -z`. Output uses the
+`git log --reverse --no-merges --no-renames --numstat -z` (with `--since` and,
+for `--max-commits N`, `-nN`, which keeps the latest N commits). Output uses the
 separators `0x1e` (between records) and `0x1f` (between header fields) and NUL
 inside the numstat part, so names and subjects containing spaces, tabs or
 newlines parse correctly. `0x1e` only starts a record when a full commit hash
 and `0x1f` follow, so a stray `0x1e` in a subject does not split a commit.
 
+The log format also prints each commit's `Co-authored-by` trailer values
+(git 2.22 or newer), joined by `0x1d` in their own field before the subject, so
+separator bytes in a subject cannot turn into co-authors. Trailers that name
+nobody are dropped. Authors get `.mailmap` applied by `%aN`/`%aE`; co-authors
+with an email are passed through `git check-mailmap` in batches, so a person is
+one plant whether they authored or co-authored.
+
 Each commit's added and deleted lines are summed over its files. Counts above
 `HugeCap` (1000) are capped and the commit is marked `Huge`. Merge commits are
 skipped because their changes already appear in the commits they merge.
 
-gitgarden only ever runs `rev-parse` and `log`; it never writes to the repository.
+gitgarden only ever runs `rev-parse`, `log` and `check-mailmap`; it never writes to the repository.
 
 ### 2. The model (`garden/model.go`)
 
 `Build` groups commits by author identity (lower-case email, or the name when
-the email is empty), totals each author, and ranks them: most commits first,
+the email is empty), totals each author, and ranks them. Every co-author of a
+commit is credited with that commit's commit and line counts too; an identity
+listed twice on one commit counts once. Authors are ranked most commits first,
 then most lines added, then earliest first commit, then key. The rank is the
 author's position everywhere else (slot, color, snapshot index).
 
@@ -84,7 +94,8 @@ holds the "wildflowers": one `*` per remaining author, labeled `+N`.
 
 The plant area has a sky-blue background. A plant is a trunk with a teardrop-shaped crown of leaves at the top. The stem height grows with the logarithm of its commit count. The number
 of leaves is the square root of the net lines added, and fallen leaves grow
-with deleted lines. The season (from the month of the current commit) chooses
+with deleted lines. The season (from the month of the current commit, shifted half a year with
+`--southern`) chooses
 leaf glyphs and colors. All geometry is in small pure functions (`StemHeight`,
 `LeafCells`, `LeafCount`, `Fallen`, `Slots`) with their own tests.
 
@@ -96,12 +107,15 @@ GIF font can draw every glyph.
 
 * **Still**: `Grid.String()` (plain) or `Grid.ANSI()` (24-bit color) of the last snapshot.
 * **Play**: `player.Play` writes each frame after `ESC[H` inside the alternate
-  screen, sleeps in steps of at most 100 ms so quit keys (`q`, Ctrl-C, Esc) are
-  noticed quickly, and restores the screen at the end. The CLI then leaves
+  screen and sleeps in steps of at most 100 ms so keys are noticed quickly:
+  space pauses, `h`/`l`, `<`/`>` and the arrow keys seek, `+`/`]` and `-`/`[`
+  change speed (5 ms to 2 s per frame, never reversing the `--speed` you gave),
+  and `q`, Ctrl-C or Esc quit. After the last frame it holds 1 second, then
+  restores the screen. The CLI then leaves
   raw mode and prints the final frame so it stays visible.
 * **GIF**: `gifenc.Image` paints each cell's background and draws its glyph
-  with the `basicfont.Face7x13` bitmap font; `gifenc.Write` encodes all frames
-  with a 3 second pause on the last one.
+  with the `basicfont.Face7x13` bitmap font; `gifenc.StreamWriter` encodes
+  frames one at a time as they are drawn, with a 3 second pause on the last one.
 
 ## Testability
 
@@ -130,8 +144,10 @@ Tests use only the standard library:
   simple and fast enough for the intended load; the result is held in memory once.
 * **No dependencies beyond two `golang.org/x` modules.** `x/term` gives raw
   mode and terminal size, `x/image` gives a self-contained bitmap font.
-* **GIF encoding is not streaming.** `image/gif` encodes from a slice, so GIF
-  mode is capped at 300 frames and 120x40 cells (about 130 MB worst case).
+* **GIF encoding streams.** `StreamWriter` encodes each frame with `image/gif`
+  and appends its image block to one shared header, so only one frame is in
+  memory at a time. GIF mode still caps output at 300 frames and 120x40 cells
+  to keep files a reasonable size.
 
 ## Build, CI and release
 

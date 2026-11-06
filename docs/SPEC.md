@@ -19,10 +19,10 @@ to build it. If the plan and the spec disagree, the spec wins.
 - Works for 1 author and for 200+ authors (long tail becomes "wildflowers").
 
 ### Non-goals (v0.1)
-- No config file, no themes, no southern-hemisphere seasons (see §13 Later).
+- No config file, no themes. (Southern-hemisphere seasons were added in v0.2 as `--southern`.)
 - No per-file or per-directory view. Only per-author plants.
 - No Unicode art. Every drawn glyph is printable ASCII (0x20–0x7E), so the GIF font can draw it.
-- No mouse, no pause/seek during playback.
+- No mouse. (Keyboard pause, seek and speed keys were added in v0.2; see §8.)
 
 ## 2. Tech stack (fixed)
 
@@ -68,7 +68,7 @@ stdlib `flag` accepts both `-flag` and `--flag`.
 
 ### 3.2 Frame size
 - Explicit `--width`/`--height` win in every mode.
-- GIF mode, auto: 80 x 24. GIF mode also requires `width <= 120` and `height <= 40` (memory cap, §9).
+- GIF mode, auto: 80 x 24. GIF mode also requires `width <= 120` and `height <= 40` (size cap, §9).
 - Other modes, auto: if stdout is a terminal and its size is readable, `W = clamp(cols, 40, 160)`, `H = clamp(rows, 12, 60)`. Otherwise 80 x 24.
 
 ### 3.3 Usage text (exact, printed for `-h` to stdout, and to stderr after usage errors)
@@ -108,6 +108,7 @@ Errors go to stderr as `gitgarden: <message>`. Exact messages:
 |---|---|---|
 | unknown flag / bad value | the `flag` package's own error line, then the usage text | 2 |
 | positional argument given | `gitgarden: unexpected argument: <arg>` | 2 |
+| `--max-commits` not positive | `gitgarden: --max-commits must be greater than 0` | 2 |
 | speed out of range | `gitgarden: --speed must be greater than 0 and at most 100` | 2 |
 | width out of range | `gitgarden: --width must be between 40 and 160` | 2 |
 | height out of range | `gitgarden: --height must be between 12 and 60` | 2 |
@@ -127,12 +128,14 @@ All git calls run as `git -C <dir> <args>` through `os/exec`, with `LC_ALL=C` ad
 
 1. `git -C <dir> rev-parse --show-toplevel`. A failure whose stderr says "not a git repository" means "not a repository"; any other failure (dubious ownership, permissions) is an "other git failure" (§3.4). `Repo` name = `filepath.Base` of the trimmed output.
 2. `git -C <dir> rev-parse --verify --quiet HEAD`. Exit status non-zero means no commits: return `ErrNoCommits`.
-3. `git -C <dir> log --reverse --no-merges --no-renames --numstat -z --no-color --format=%x1e%H%x1f%aN%x1f%aE%x1f%at%x1f%s [--since=<v>] HEAD`
+3. `git -C <dir> log --reverse --no-merges --no-renames --numstat -z --no-color --format=%x1e%H%x1f%aN%x1f%aE%x1f%at%x1f%(trailers:key=Co-authored-by,valueonly=true,unfold=true,separator=%x1d)%x1f%s [--since=<v>] [-n<N>] HEAD`. `-n<N>` comes from `--max-commits N` and keeps the latest N commits. The `%(trailers:...)` options need git 2.22 or newer.
+4. If any co-author has an email: `git -C <dir> check-mailmap <"Name <email>">...` (at most 500 contacts per call), so co-authors get the same `.mailmap` rewrite that `%aN`/`%aE` give authors.
 
 ### 4.1 Parsing the log output
-- Split the whole output on `\x1e`. Drop the first element (empty).
+- Split the whole output on `\x1e`, but only where a 40- or 64-hex hash and `\x1f` follow, so a `\x1e` inside a subject does not split a commit. Drop the first element (empty).
 - Each chunk: header = text before the first `\x00`. Rest = text after that `\x00`, with one leading `\n` removed if present.
-- Header: `strings.SplitN(header, "\x1f", 5)` gives hash, author name (mailmap applied by `%aN`), author email (mailmap applied by `%aE`), unix seconds, subject.
+- Header: `strings.SplitN(header, "\x1f", 6)` gives hash, author name (mailmap applied by `%aN`), author email (mailmap applied by `%aE`), unix seconds, co-author trailers, subject. The subject is last so separator bytes inside it stay in the subject.
+- Co-author trailers: split on `\x1d`. Each value `Name <email>` gives a `CoAuthor`; a value without `<...>` is a name only, and a missing name falls back to the email. Values that name nobody (e.g. `<>`) are skipped.
 - Rest: split on `\x00`, ignore empty fields. Each field is `<added>\t<deleted>\t<path>`. `-` (binary) counts as 0.
 - Zero chunks after filtering: `ErrNoCommits`.
 
@@ -148,7 +151,9 @@ type Commit struct {
     Added   int       // sum over files, then capped at HugeCap
     Deleted int       // sum over files, then capped at HugeCap
     Huge    bool      // raw added sum > HugeCap or raw deleted sum > HugeCap
+    CoAuthors []CoAuthor // Co-authored-by trailers, after .mailmap
 }
+type CoAuthor struct{ Name, Email string }
 const HugeCap = 1000
 ```
 
@@ -188,7 +193,7 @@ type Snapshot struct {
 }
 func (g *Garden) Snapshots(limit int) []Snapshot
 ```
-- `n = len(Commits)`. The sampled indices are `Sample(n, limit)` (§5.3). Walk the commits once in order, add each commit's (1, Added, Deleted) to its author's Stats, and copy the Stats slice whenever the current index is in the sample set.
+- `n = len(Commits)`. The sampled indices are `Sample(n, limit)` (§5.3). Walk the commits once in order, add each commit's (1, Added, Deleted) to its author's Stats and to each co-author's Stats (an identity listed twice on one commit counts once), and copy the Stats slice whenever the current index is in the sample set. `Build` ranks co-authors the same way.
 - Play mode uses `limit = 600`. GIF mode uses `limit = 300`. Still mode uses only the last snapshot (`Snapshots(1)` returns just index `n-1`).
 
 ### 5.3 Sampling (shared by gitgarden and replay)
@@ -253,12 +258,12 @@ func Draw(g *Garden, s Snapshot, w, h int) *frame.Grid
 ```
 
 ### 7.1 Seasons
-Month of the current commit's `Time` (UTC): Dec–Feb `winter`, Mar–May `spring`, Jun–Aug `summer`, Sep–Nov `autumn`. Northern hemisphere only in v0.1.
+Month of the current commit's `Time` (UTC): Dec–Feb `winter`, Mar–May `spring`, Jun–Aug `summer`, Sep–Nov `autumn`. With `--southern` (v0.2) the seasons are shifted by half a year.
 
 ```go
 type Season int
 const (Winter Season = iota; Spring; Summer; Autumn)
-func SeasonOf(t time.Time) Season
+func SeasonOf(t time.Time, southern ...bool) Season
 func (s Season) String() string // "winter", "spring", "summer", "autumn"
 ```
 
@@ -288,9 +293,15 @@ func Play(w io.Writer, keys <-chan byte, n int, frameAt func(i int) string,
     interval time.Duration, sleep func(time.Duration)) (quit bool)
 ```
 1. Write `"\x1b[?1049h\x1b[?25l"` (alternate screen, hide cursor).
-2. For `i = 0 .. n-1`: write `"\x1b[?2026h\x1b[H"` + `frameAt(i)` with every `"\n"` replaced by `"\x1b[K\r\n"`, then `"\x1b[K\x1b[?2026l"` (synchronized output, which stops flicker). Then drain `keys` without blocking: if any byte is `q`, `Q`, `3` (Ctrl-C), or `27` (Esc), go to step 4 with `quit = true`. Otherwise sleep `interval`, in steps of at most 100 ms, draining `keys` after each step so a quit key works at low speeds.
-3. After the last frame: `sleep(time.Second)`.
-4. Write `"\x1b[?25h\x1b[?1049l"`. Return `quit`.
+2. Draw frame 0. Each draw writes `"\x1b[?2026h\x1b[H"` + `frameAt(i)` with every `"\n"` replaced by `"\x1b[K\r\n"`, then `"\x1b[K\x1b[?2026l"` (synchronized output, which stops flicker).
+3. One loop reads at most one key (non-blocking) per pass, then acts:
+   - `q`, `Q`, `3` (Ctrl-C), or a lone `27` (Esc, no follow-up byte within 25 ms): go to step 5 with `quit = true`.
+   - Space: toggle pause. While paused, sleep 100 ms per pass and never advance.
+   - `h`, `<`, Left (`ESC [ D`): previous frame. `l`, `>`, Right (`ESC [ C`): next frame. Both clamp at the ends, reset the time to the next frame, and loop again without sleeping, so a burst of seek keys is handled at once.
+   - `+` or `]`: interval × 3/4, but only if it is above 5 ms (floor 5 ms). `-` or `[`: interval × 4/3, but only if it is below 2 s (ceiling 2 s). Clamping only in the direction of the change means a key never reverses a `--speed` that starts outside that range.
+   - Otherwise sleep the time left until the next frame, in steps of at most 100 ms, so keys work at low speeds. When it runs out, draw the next frame; after the last frame leave the loop.
+4. Final hold: sleep 1 s in 100 ms steps; a quit key during it returns `quit = true`.
+5. Write `"\x1b[?25h\x1b[?1049l"`. Return `quit`.
 
 - `interval = time.Duration(float64(100*time.Millisecond) / speed)`.
 - The CLI puts stdin in raw mode before `Play` (if stdin is a terminal), starts a goroutine that copies stdin bytes into `keys`, and restores the terminal after `Play`. If `quit` is false, it then prints the final frame normally, so it stays on screen.
@@ -301,13 +312,14 @@ func Play(w io.Writer, keys <-chan byte, n int, frameAt func(i int) string,
 ```go
 const CellW, CellH = 7, 13
 func Image(g *frame.Grid) *image.Paletted
+func NewStream(w io.Writer, delay int) (*StreamWriter, error) // Append(g), Close()
 func Write(w io.Writer, frames []*frame.Grid, delay int) error
 ```
 - Image size: `W*7 x H*13` pixels. Palette: the 17 colors of §10.2, in index order.
 - Each cell: fill its 7x13 rectangle with the cell's BG color, then draw its rune with `font.Drawer{Dst: img, Src: image.NewUniform(Palette[fg]), Face: basicfont.Face7x13, Dot: fixed.P(x*7, y*13+11)}`. Runes outside 0x20–0x7E draw as `?`. Space draws nothing.
-- `gif.GIF{Image: images, Delay: delays, LoopCount: 0}` then `gif.EncodeAll`. Every delay is `delay` except the last, which is 300 (3 s).
+- `StreamWriter` writes the header, global palette and a looping (Netscape, count 0) extension with the first frame, then each frame as it is appended, holding one frame back so `Close` can give the last one delay 300 (3 s). Every other delay is `delay`. `Close` with no frames is an error. `Write` is `NewStream` + `Append` per frame + `Close`.
 - `delay = max(2, int(math.Round(10 / speed)))` in hundredths of a second.
-- Limits: at most 300 frames (`Snapshots(300)`) and at most 120x40 cells (840x520 px). Worst-case memory is about 300 x 437 KB = 131 MB, because `image/gif` encodes from a slice of all frames. A streaming encoder is in §13 Later.
+- Limits: at most 300 frames (`Snapshots(300)`) and at most 120x40 cells (840x520 px). Frames are drawn and encoded one at a time, so memory holds about one frame image (at most 437 KB) plus its encoded bytes.
 
 ## 10. Frames (package `internal/frame`, same code in replay)
 
