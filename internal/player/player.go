@@ -10,6 +10,12 @@ import (
 // pollEvery bounds how long Play sleeps before it looks at the keys again.
 const pollEvery = 100 * time.Millisecond
 
+// minInterval and maxInterval bound the frame interval reachable with the + and - keys.
+const (
+	minInterval = 5 * time.Millisecond
+	maxInterval = 2 * time.Second
+)
+
 type keyAction int
 
 const (
@@ -78,44 +84,8 @@ func Play(w io.Writer, keys <-chan byte, n int, frameAt func(i int) string,
 	i := 0
 	draw(i)
 
-	timerLeft := interval
-	for i < n {
-		act := nextKey(keys)
-		switch act {
-		case actQuit:
-			return true
-		case actPauseToggle:
-			paused = !paused
-		case actStepBack:
-			if i > 0 {
-				i--
-				draw(i)
-			}
-			timerLeft = interval
-			continue
-		case actStepForward:
-			if i < n-1 {
-				i++
-				draw(i)
-			}
-			timerLeft = interval
-			continue
-		case actSpeedUp:
-			interval = max(5*time.Millisecond, interval*3/4)
-			timerLeft = min(timerLeft, interval)
-		case actSlowDown:
-			interval = min(2*time.Second, interval*4/3)
-		}
-
-		if paused {
-			sleep(pollEvery)
-			continue
-		}
-
-		d := min(timerLeft, pollEvery)
-		sleep(d)
-		timerLeft -= d
-
+	left := interval // time until the next frame
+	for {
 		switch nextKey(keys) {
 		case actQuit:
 			return true
@@ -126,30 +96,42 @@ func Play(w io.Writer, keys <-chan byte, n int, frameAt func(i int) string,
 				i--
 				draw(i)
 			}
-			timerLeft = interval
-			continue
+			left = interval
+			continue // seeks are handled back to back, without a sleep in between
 		case actStepForward:
 			if i < n-1 {
 				i++
 				draw(i)
 			}
-			timerLeft = interval
+			left = interval
 			continue
 		case actSpeedUp:
-			interval = max(5*time.Millisecond, interval*3/4)
-			timerLeft = min(timerLeft, interval)
+			// Clamp only in the direction of the change, so a key never reverses a --speed outside the range.
+			if interval > minInterval {
+				interval = max(minInterval, interval*3/4)
+			}
+			left = min(left, interval)
 		case actSlowDown:
-			interval = min(2*time.Second, interval*4/3)
+			if interval < maxInterval {
+				interval = min(maxInterval, interval*4/3)
+			}
 		}
-
-		if !paused && timerLeft <= 0 {
+		if paused {
+			sleep(pollEvery)
+			continue
+		}
+		if left <= 0 {
 			if i == n-1 {
 				break
 			}
 			i++
 			draw(i)
-			timerLeft = interval
+			left = interval
+			continue
 		}
+		d := min(left, pollEvery)
+		sleep(d)
+		left -= d
 	}
 
 	for left := time.Second; left > 0; {
