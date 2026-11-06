@@ -3,6 +3,7 @@ package gitlog
 import (
 	"errors"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -179,5 +180,42 @@ func TestGitErrorFormatting(t *testing.T) {
 	empty := &GitError{Args: []string{"status"}, Stderr: " \n "}
 	if got := empty.Error(); got != "git status: command failed" {
 		t.Fatalf("got %q", got)
+	}
+}
+
+// TestLoadSubjectWithGroupSeparatorIsNotACoAuthor checks that a 0x1d byte in a subject stays in the
+// subject instead of being read as a Co-authored-by trailer.
+func TestLoadSubjectWithGroupSeparatorIsNotACoAuthor(t *testing.T) {
+	r := testrepo.New(t)
+	r.Write("a.txt", "x\n")
+	r.Commit("Ada", "ada@example.com", "feat: a\x1dEvil <e@x>")
+	_, cs, err := Load(r.Dir, "")
+	if err != nil || len(cs) != 1 || cs[0].Subject != "feat: a\x1dEvil <e@x>" || len(cs[0].CoAuthors) != 0 {
+		t.Fatalf("err %v commits %+v", err, cs)
+	}
+}
+
+// TestLoadSkipsBlankCoAuthors checks that a trailer with neither name nor email is ignored and that an
+// email-only trailer is labeled with its email.
+func TestLoadSkipsBlankCoAuthors(t *testing.T) {
+	r := testrepo.New(t)
+	r.Write("a.txt", "x\n")
+	r.Commit("Ada", "ada@example.com", "feat\n\nCo-authored-by: <>\nCo-authored-by: <bob@example.com>")
+	_, cs, err := Load(r.Dir, "")
+	want := []CoAuthor{{Name: "bob@example.com", Email: "bob@example.com"}}
+	if err != nil || len(cs) != 1 || !slices.Equal(cs[0].CoAuthors, want) {
+		t.Fatalf("err %v commits %+v", err, cs)
+	}
+}
+
+// TestLoadAppliesMailmapToCoAuthors checks that Co-authored-by identities go through .mailmap like authors do.
+func TestLoadAppliesMailmapToCoAuthors(t *testing.T) {
+	r := testrepo.New(t)
+	r.Write(".mailmap", "Bob Builder <bob@example.com> <bobby@old.example>\n")
+	r.Commit("Ada", "ada@example.com", "feat\n\nCo-authored-by: bobby <bobby@old.example>\nCo-authored-by: Carol")
+	_, cs, err := Load(r.Dir, "")
+	want := []CoAuthor{{Name: "Bob Builder", Email: "bob@example.com"}, {Name: "Carol"}}
+	if err != nil || len(cs) != 1 || !slices.Equal(cs[0].CoAuthors, want) {
+		t.Fatalf("err %v commits %+v", err, cs)
 	}
 }

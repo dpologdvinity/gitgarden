@@ -91,7 +91,7 @@ func Load(dir, since string, maxCommits ...int) (repo string, commits []Commit, 
 	// 3. One git log call, oldest first, merges skipped. -z and the 0x1e/0x1f separators keep
 	// parsing safe for names and subjects that contain spaces, tabs or newlines.
 	args := []string{"log", "--reverse", "--no-merges", "--no-renames", "--numstat", "-z",
-		"--no-color", "--format=%x1e%H%x1f%aN%x1f%aE%x1f%at%x1f%s%x1d%(trailers:key=Co-authored-by,valueonly=true,separator=%x1d)"}
+		"--no-color", "--format=%x1e%H%x1f%aN%x1f%aE%x1f%at%x1f%(trailers:key=Co-authored-by,valueonly=true,unfold=true,separator=%x1d)%x1f%s"}
 	if since != "" {
 		args = append(args, "--since="+since)
 	}
@@ -113,31 +113,73 @@ func Load(dir, since string, maxCommits ...int) (repo string, commits []Commit, 
 	if len(commits) == 0 {
 		return repo, nil, ErrNoCommits
 	}
+	if err := mailmapCoAuthors(dir, commits); err != nil {
+		return repo, nil, err
+	}
 	return repo, commits, nil
 }
 
-// parseChunk parses one log record: a header (hash, name, email, unix time, subject separated by
-// 0x1f), a NUL, then NUL-separated numstat entries "added\tdeleted\tpath". Binary files count as 0 lines.
+// mailmapBatch is how many contacts one git check-mailmap call gets, to stay far below argv limits.
+const mailmapBatch = 500
+
+// mailmapCoAuthors rewrites co-authors through .mailmap, which %(trailers) does not apply, so a
+// person is one plant whether they authored or co-authored. Co-authors without an email are left as is.
+func mailmapCoAuthors(dir string, commits []Commit) error {
+	mapped := map[string]CoAuthor{}
+	var contacts []string
+	for _, c := range commits {
+		for _, co := range c.CoAuthors {
+			k := co.Name + " <" + co.Email + ">"
+			if _, seen := mapped[k]; co.Email != "" && !seen && !strings.Contains(k, "\n") {
+				mapped[k] = co
+				contacts = append(contacts, k)
+			}
+		}
+	}
+	for len(contacts) > 0 {
+		batch := contacts[:min(len(contacts), mailmapBatch)]
+		contacts = contacts[len(batch):]
+		out, err := git(dir, append([]string{"check-mailmap"}, batch...)...)
+		if err != nil {
+			return err
+		}
+		lines := strings.Split(strings.TrimSuffix(out, "\n"), "\n")
+		if len(lines) != len(batch) {
+			return &GitError{Args: []string{"check-mailmap"}, Stderr: "unexpected output"}
+		}
+		for i, line := range lines {
+			mapped[batch[i]] = parseCoAuthor(line)
+		}
+	}
+	for i := range commits {
+		for j, co := range commits[i].CoAuthors {
+			if m, ok := mapped[co.Name+" <"+co.Email+">"]; ok {
+				commits[i].CoAuthors[j] = m
+			}
+		}
+	}
+	return nil
+}
+
+// parseChunk parses one log record: a header (hash, name, email, unix time, Co-authored-by values
+// joined by 0x1d, subject; separated by 0x1f), a NUL, then NUL-separated numstat entries
+// "added\tdeleted\tpath". Binary files count as 0 lines. The subject comes last so separator bytes
+// inside it stay in the subject instead of being read as trailers.
 func parseChunk(chunk string) (Commit, error) {
 	header, rest, _ := strings.Cut(chunk, "\x00")
 	rest = strings.TrimPrefix(rest, "\n")
-	mainHeader, trailerStr, _ := strings.Cut(header, "\x1d")
-	f := strings.SplitN(mainHeader, "\x1f", 5)
-	if len(f) != 5 {
+	f := strings.SplitN(header, "\x1f", 6)
+	if len(f) != 6 {
 		return Commit{}, &GitError{Args: []string{"log"}, Stderr: "unparsable output"}
 	}
 	at, err := strconv.ParseInt(f[3], 10, 64)
 	if err != nil {
 		return Commit{}, &GitError{Args: []string{"log"}, Stderr: "bad timestamp " + f[3]}
 	}
-	c := Commit{Hash: f[0], Name: f[1], Email: f[2], Time: time.Unix(at, 0).UTC(), Subject: f[4]}
-	if trailerStr != "" {
-		for _, tr := range strings.Split(trailerStr, "\x1d") {
-			tr = strings.TrimSpace(tr)
-			if tr == "" {
-				continue
-			}
-			c.CoAuthors = append(c.CoAuthors, parseCoAuthor(tr))
+	c := Commit{Hash: f[0], Name: f[1], Email: f[2], Time: time.Unix(at, 0).UTC(), Subject: f[5]}
+	for _, tr := range strings.Split(f[4], "\x1d") {
+		if co := parseCoAuthor(tr); co.Name != "" {
+			c.CoAuthors = append(c.CoAuthors, co)
 		}
 	}
 	for _, field := range strings.Split(rest, "\x00") {
@@ -161,16 +203,18 @@ func parseChunk(chunk string) (Commit, error) {
 	return c, nil
 }
 
-// parseCoAuthor extracts a name and email from a trailer value like "Name <email>".
+// parseCoAuthor extracts a name and email from a trailer value like "Name <email>". A missing name
+// falls back to the email, so the result has an empty Name only when the trailer names nobody.
 func parseCoAuthor(s string) CoAuthor {
 	s = strings.TrimSpace(s)
+	co := CoAuthor{Name: s}
 	if before, after, ok := strings.Cut(s, "<"); ok && strings.HasSuffix(after, ">") {
-		return CoAuthor{
-			Name:  strings.TrimSpace(before),
-			Email: strings.TrimSuffix(after, ">"),
-		}
+		co = CoAuthor{Name: strings.TrimSpace(before), Email: strings.TrimSpace(strings.TrimSuffix(after, ">"))}
 	}
-	return CoAuthor{Name: s}
+	if co.Name == "" {
+		co.Name = co.Email
+	}
+	return co
 }
 
 // classifyRevParse maps git's "not a repository" failure to ErrNotRepo and
