@@ -148,3 +148,29 @@ func TestPlayArrowKeysAndBoundaries(t *testing.T) {
 		t.Fatalf("rendered: %v, want [0 1]", rendered)
 	}
 }
+
+// TestPlaySpeedKeysNeverReverse checks that + never slows playback and - never speeds it up, even
+// when the starting interval is already outside the keys' clamping range.
+func TestPlaySpeedKeysNeverReverse(t *testing.T) {
+	for _, tc := range []struct {
+		key      byte
+		interval time.Duration
+		faster   bool
+	}{
+		{'+', time.Millisecond, true},
+		{'-', 10 * time.Second, false},
+	} {
+		keys := make(chan byte, 1)
+		keys <- tc.key
+		var elapsed time.Duration
+		drawnAt := map[int]time.Duration{}
+		Play(&bytes.Buffer{}, keys, 3, func(i int) string {
+			drawnAt[i] = elapsed
+			return "x"
+		}, tc.interval, func(d time.Duration) { elapsed += d })
+		gap := drawnAt[2] - drawnAt[1]
+		if tc.faster && gap > tc.interval || !tc.faster && gap < tc.interval {
+			t.Errorf("key %q at %v: frame gap became %v", tc.key, tc.interval, gap)
+		}
+	}
+}
