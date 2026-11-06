@@ -1,6 +1,7 @@
 # gitgarden
 
 [![CI](https://github.com/dpologdvinity/gitgarden/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/dpologdvinity/gitgarden/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/dpologdvinity/gitgarden/branch/master/graph/badge.svg)](https://codecov.io/gh/dpologdvinity/gitgarden)
 [![Latest release](https://img.shields.io/github/v/release/dpologdvinity/gitgarden)](https://github.com/dpologdvinity/gitgarden/releases/latest)
 [![Go version](https://img.shields.io/github/go-mod/go-version/dpologdvinity/gitgarden)](go.mod)
 [![License: MIT](https://img.shields.io/github/license/dpologdvinity/gitgarden)](LICENSE)

@@ -152,7 +152,9 @@ Tests use only the standard library:
 ## Build, CI and release
 
 * CI (`.github/workflows/ci.yml`) runs `gofmt`, `go vet` and `go test -race` on
-  Linux, macOS and Windows, plus `govulncheck` and `goreleaser check`.
+  Linux, macOS and Windows, plus `govulncheck` and `goreleaser check`. On Linux it enforces
+  80% statement coverage and uploads the profile to Codecov (needs the `CODECOV_TOKEN` secret);
+  a failed upload does not fail the build.
 * Pushing a tag `v*` runs `.github/workflows/release.yml`, which uses
   [GoReleaser](https://goreleaser.com) (`.goreleaser.yaml`) to build
   linux/darwin/windows binaries for amd64 and arm64, publish a GitHub release and update the
