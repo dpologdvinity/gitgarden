@@ -78,6 +78,15 @@ jobs:
           name: coverage
           path: coverage.out
           retention-days: 7
+      - name: Upload coverage to Codecov
+        if: runner.os == 'Linux'
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.out
+          disable_search: true
+          # Reporting only: the 80% gate below is enforced here, so a Codecov outage must not block merges.
+          fail_ci_if_error: false
       - name: Coverage summary and minimum (80%)
         if: runner.os == 'Linux'
         run: |
