@@ -1,4 +1,16 @@
-.env
+# Build output and coverage
 dist/
+/gitgarden
+/gitgarden.exe
+coverage.out
+
+# Generated GIFs (except the README demo)
 *.gif
 !docs/demo.gif
+
+# Secrets and personal overrides
+.env
+.env.*
+!.env.example
+*.local.*
+CLAUDE.local.md
