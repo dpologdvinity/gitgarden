@@ -39,7 +39,7 @@ go build ./... && go test ./...
 
 * Every package has a package comment, and every function, type and constant has a doc comment that
   starts with its name. Explain *why* when the code is not obvious.
-* gitgarden is read-only: only run `git` commands that read (`rev-parse`, `log`).
+* gitgarden is read-only: only run `git` commands that read (`rev-parse`, `log`, `check-mailmap`).
 * No randomness and no wall-clock time outside `main.go`, so output stays deterministic.
 * Every drawn character must be printable ASCII (0x20-0x7E).
 * Do not add dependencies without a strong reason; today there are only `x/term` and `x/image`.
@@ -52,7 +52,8 @@ go build ./... && go test ./...
 * Open pull requests against `master`. CI must pass: dependencies, lint, tests on Linux, macOS and
   Windows, and a build of all release binaries.
 * Describe what changed and why. If behavior changes, update `docs/SPEC.md`, the README and tests in the same PR.
-* Never commit secrets, `.env` files or editor/agent files (`.claude/`, `CLAUDE.md`, `AGENTS.md`, ...).
+* Never commit secrets, `.env` files or personal editor/agent overrides (`.claude/settings.local.json`,
+  `CLAUDE.local.md`). Shared agent instructions live in `AGENTS.md`.
 
 ## Releases
 

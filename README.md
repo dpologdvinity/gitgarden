@@ -116,6 +116,8 @@ Golden files live in `testdata/golden`. After an intended change to the output, 
 
 Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md). [ARCHITECTURE.md](ARCHITECTURE.md) explains how the code is organized, and [docs/SPEC.md](docs/SPEC.md) describes the exact behavior.
 
+gitgarden is built with AI coding agents. [AGENTS.md](AGENTS.md) holds their instructions and workflow, and the specs-first implementation plans they executed are in [docs/agents/plans/](docs/agents/plans/).
+
 ## License
 
 MIT, see [LICENSE](LICENSE).
