@@ -5,8 +5,9 @@ Every contributor is a plant. Commits make plants grow taller and add leaves,
 deleted lines drop leaves, and the month of each commit sets the season. It
 plays in the terminal, prints a still final frame, or exports a GIF for a README.
 
-This document is the source of truth for v0.1 behavior. `docs/PLAN.md` says how
-to build it. If the plan and the spec disagree, the spec wins.
+This document is the source of truth for v0.1 behavior.
+`docs/agents/plans/2026-10-23-v0.1-implementation.md` says how to build it. If the
+plan and the spec disagree, the spec wins.
 
 ## 1. Goals and non-goals
 
